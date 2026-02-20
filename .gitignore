@@ -1,0 +1,21 @@
+# Binaries
+/cmd/hotplexd/hotplexd
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Node/Frontend
+node_modules/
+.npm/
+
+# IDE & OS Files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
