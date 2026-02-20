@@ -110,9 +110,6 @@ type Config struct {
 	UserID           int32  // User ID for logging, context, and isolation
 	TaskSystemPrompt string // Task-specific system prompt injected at startup (merged with EngineOptions.BaseSystemPrompt)
 	DeviceContext    string // JSON string containing device/browser context
-
-	// Session specific boundaries
-	SessionAllowedPaths []string // Path whitelist for file access (specific to this session)
 }
 
 // ProcessingPhase represents the current phase of agent processing.

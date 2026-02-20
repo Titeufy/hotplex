@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -280,33 +281,15 @@ func (sm *SessionPool) startSession(ctx context.Context, sessionID string, cfg C
 		args = append(args, "--permission-mode", sm.opts.PermissionMode)
 	}
 
-	// 2. Allowed Paths (Merged: Global + Session)
-	// Example: Claude CLI currently does NOT support --allow-read native flags yet.
-	// We keep the arrays merged for future WAF or plugin usage parsing.
-	var allowed []string
-	allowed = append(allowed, sm.opts.GlobalAllowedPaths...)
-	allowed = append(allowed, cfg.SessionAllowedPaths...)
-	// for _, p := range allowed {
-	// 	if p != "" {
-	// 		args = append(args, "--allow-read", p, "--allow-write", p) // Pending CLI support
-	// 	}
-	// }
-
-	// 3. Forbidden Paths (Strictly enforced from EngineOptions)
-	for _, p := range sm.opts.ForbiddenPaths {
-		if p != "" {
-			// args = append(args, "--deny-read", p, "--deny-write", p) // Pending CLI support
-			sm.logger.Debug("Forbidden path registered (WAF enforcement only)", "path", p)
-		}
+	// 2. Allowed Tools (Engine-level constraint)
+	if len(sm.opts.AllowedTools) > 0 {
+		args = append(args, "--allowed-tools", strings.Join(sm.opts.AllowedTools, ","))
 	}
 
-	// Note: We don't pass the initial prompt here. The prompt will be injected via stdin later
-	// OR passed as argument. BUT we want a persistent session.
-	// If we pass a prompt arg, it runs and might exit?
-	// CC Runner usually waits for input if interactive?
-	// Spec says: "Process starts... hangs waiting for stdin".
-	// Depending on CC CLI behavior, if no prompt provided, does it start REPL?
-	// We assume passing no prompt starts REPL mode or waits.
+	// 3. Disallowed Tools (Engine-level constraint)
+	if len(sm.opts.DisallowedTools) > 0 {
+		args = append(args, "--disallowed-tools", strings.Join(sm.opts.DisallowedTools, ","))
+	}
 
 	// 4. System Prompt (Merged: Base + Task)
 	var combinedPrompt string

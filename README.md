@@ -70,6 +70,7 @@ opts := hotplex.EngineOptions{
     Timeout: 5 * time.Minute,
     Logger:  logger,
     PermissionMode: "bypassPermissions", // Global security constraint
+    AllowedTools: []string{"Bash", "Edit"}, // Restrict capabilities at the Engine level
     // InputCostPerMillion: 3.0, // Configure token pricing
 }
 

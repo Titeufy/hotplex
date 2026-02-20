@@ -26,10 +26,10 @@ type EngineOptions struct {
 	Namespace string
 
 	// Foundational Security & Context (Engine-level boundaries)
-	PermissionMode     string   // Controls CLI permissions: "default", "bypassPermissions", etc.
-	BaseSystemPrompt   string   // Foundational system prompt injected at startup for all sessions
-	GlobalAllowedPaths []string // Baseline path whitelist for file access (shared across all sessions)
-	ForbiddenPaths     []string // Absolute path blacklist for file access (cannot be overridden by sessions)
+	PermissionMode   string   // Controls CLI permissions: "default", "bypassPermissions", etc.
+	BaseSystemPrompt string   // Foundational system prompt injected at startup for all sessions
+	AllowedTools     []string // Tools explicitly allowed to be used (e.g. "Bash", "Edit")
+	DisallowedTools  []string // Tools explicitly forbidden from being used
 }
 
 // Engine is the unified process integration layer for Hot-Multiplexing.
@@ -229,9 +229,8 @@ func (r *Engine) executeWithMultiplex(
 	}
 
 	smCfg := Config{
-		WorkDir:             cfg.WorkDir,
-		TaskSystemPrompt:    taskSystemPrompt,
-		SessionAllowedPaths: cfg.SessionAllowedPaths,
+		WorkDir:          cfg.WorkDir,
+		TaskSystemPrompt: taskSystemPrompt,
 	}
 
 	// GetOrCreateSession reuses existing process or starts a new one

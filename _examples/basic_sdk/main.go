@@ -29,11 +29,9 @@ func main() {
 		Logger:    logger,          // Injected slog logger for structured observability
 		Namespace: "demo_app",      // Custom string namespace for deterministic UUID isolation
 
-		// Global Security Context
-		PermissionMode:     "bypassPermissions",                   // Ensure demo runs seamlessly
-		BaseSystemPrompt:   "You are a helpful Go CLI assistant.", // Core persona
-		GlobalAllowedPaths: []string{"/tmp", "/var/tmp"},          // Baseline allowed paths
-		ForbiddenPaths:     []string{"/etc", "/root"},             // Strict blacklist
+		// Security Context at Engine level
+		PermissionMode: "bypassPermissions",      // Set "default" for interactive mode
+		AllowedTools:   []string{"Bash", "Edit"}, // Only allow certain native tools
 	}
 
 	engine, err := hotplex.NewEngine(opts)
@@ -45,11 +43,10 @@ func main() {
 	// 2. Define Execution Configuration
 	// This configuration dictates how a specific task is executed within the Engine.
 	cfg := &hotplex.Config{
-		WorkDir:             "/tmp",                         // The isolated working directory for the agent to operate in
-		SessionID:           "local-demo-1",                 // A unique ID for Hot-Multiplexing (process reuse). Same ID = same process.
-		UserID:              1,                              // Identifier for the user initiating the request (used for auditing and context)
-		TaskSystemPrompt:    "Output directly, no yapping.", // Specific command for this turn
-		SessionAllowedPaths: []string{"/tmp/workspace"},     // Extra paths needed for this specific task
+		WorkDir:          "/tmp",                                                 // The isolated working directory for the agent to operate in
+		ConversationID:   42,                                                     // Ensures deterministic generation of UUID v5
+		UserID:           1,                                                      // Identifier for the user initiating the request (used for auditing and context)
+		TaskSystemPrompt: "Always add a short comment to the code you generate.", // Specific command for this turn
 	}
 
 	prompt := "Write a one-line bash script to print hello world and execute it."
