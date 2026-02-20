@@ -10,27 +10,7 @@ HotPlex is a high-performance Process Multiplexer designed specifically to solve
 
 HotPlex adopts a clear layered architecture design to ensure the purity of the core engine and the flexibility of external access. The system is divided into **Access Layer**, **Engine Layer**, **Session Control Layer**, and **Bottom Process Isolation Layer**.
 
-```mermaid
-graph TD
-    Client["Client (Web / CLI / AI System)"] -->|1. WebSocket| WS["WebSocket Gateway<br>cmd/hotplexd"]
-    Client -->|1. Native API| GoSDK["Go SDK<br>pkg/hotplex"]
-    
-    WS -->|2. Config & Prompt| Engine["Engine Singleton<br>Core Engine"]
-    GoSDK --> Engine
-    
-    subgraph HotPlexCore ["HotPlex Core Layer"]
-        Engine -->|3. Threat Check| Detector["Danger Detector<br>Regex WAF"]
-        Engine -->|4. Session Routing| Pool["SessionPool / SessionManager<br>Session Management"]
-        
-        Pool -->|Periodic Trigger| GC["Idle Garbage Collection"]
-        Pool -->|5. Pipe Takeover| Session1["Session (PGID Isolation)<br>Persistent CLI Process"]
-        Pool -.-> SessionN["Session N..."]
-    end
-    
-    Session1 ==>|Stdin Write| OS_Proc["OS Process<br>Claude Code / Aider"]
-    OS_Proc ==>|Stdout/Stderr Parse| EventDispatcher["Event Stream Dispatcher"]
-    EventDispatcher ==> Client
-```
+![HotPlex Core Architecture](images/topology.svg)
 
 ---
 

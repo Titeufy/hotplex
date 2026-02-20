@@ -36,9 +36,11 @@ Key Application Scenarios include:
 - **Regex Security Firewall:** Built-in `danger.go` pre-flight interceptor blocks destructive commands (`rm -rf /`, fork bombs, etc.) before they even reach the agent.
 - **Context Isolation:** Uses UUID v5 deterministic namespaces to guarantee sandboxed session isolation.
 
-## 📦 Architecture
+### 📦 Architecture
 
 HotPlex is designed with a two-tier architecture:
+
+![HotPlex Architecture](docs/images/topology.svg)
 
 1.  **Core SDK (`pkg/hotplex`)**: The engine itself. It provides the `Engine` Singleton, `SessionPool`, and `Detector` (Security Firewall). It expects JSON streams from the CLI and emits strongly-typed Go events.
 2.  **Standalone Server (`cmd/hotplexd`)**: A lightweight wrapper around the SDK that exposes it over standard WebSockets.

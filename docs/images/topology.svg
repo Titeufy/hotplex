@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 680" width="100%" height="auto">
+  <defs>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8B949E" />
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#58A6FF" />
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3FB950" />
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#FF7B72" />
+    </marker>
+  </defs>
+
+  <rect width="900" height="680" rx="12" fill="#0D1117" stroke="#30363D" stroke-width="2"/>
+
+  <text x="450" y="45" font-family="-apple-system, sans-serif" font-size="22" font-weight="bold" fill="#E6EDF3" text-anchor="middle">HotPlex Core Architecture</text>
+
+  <rect x="50" y="80" width="800" height="110" rx="8" fill="#161B22" stroke="#30363D" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="70" y="105" font-family="-apple-system, sans-serif" font-size="14" font-weight="bold" fill="#8B949E">1. Access Layer</text>
+
+  <rect x="120" y="120" width="180" height="46" rx="6" fill="#21262D" stroke="#30363D" stroke-width="2"/>
+  <text x="210" y="148" font-family="-apple-system, sans-serif" font-size="14" font-weight="600" fill="#E6EDF3" text-anchor="middle">Client (Web / CLI)</text>
+
+  <g transform="translate(380, 120)">
+    <rect width="200" height="46" rx="6" fill="#1F6FEB" opacity="0.15"/>
+    <rect width="200" height="46" rx="6" fill="none" stroke="#58A6FF" stroke-width="2"/>
+    <text x="100" y="22" font-family="-apple-system, sans-serif" font-size="14" font-weight="bold" fill="#58A6FF" text-anchor="middle">WebSocket Gateway</text>
+    <text x="100" y="38" font-family="monospace" font-size="11" fill="#8B949E" text-anchor="middle">cmd/hotplexd</text>
+  </g>
+
+  <g transform="translate(620, 120)">
+    <rect width="180" height="46" rx="6" fill="#238636" opacity="0.15"/>
+    <rect width="180" height="46" rx="6" fill="none" stroke="#3FB950" stroke-width="2"/>
+    <text x="90" y="22" font-family="-apple-system, sans-serif" font-size="14" font-weight="bold" fill="#3FB950" text-anchor="middle">Go SDK</text>
+    <text x="90" y="38" font-family="monospace" font-size="11" fill="#8B949E" text-anchor="middle">pkg/hotplex</text>
+  </g>
+
+  <path d="M 300 143 L 370 143" stroke="#8B949E" stroke-width="2" marker-end="url(#arrow-gray)"/>
+  <path d="M 210 166 L 210 185 L 710 185 L 710 166" stroke="#8B949E" stroke-width="2" marker-end="url(#arrow-gray)" fill="none"/>
+
+  <rect x="50" y="220" width="800" height="280" rx="8" fill="#161B22" stroke="#30363D" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="70" y="245" font-family="-apple-system, sans-serif" font-size="14" font-weight="bold" fill="#8B949E">2. Core &amp; Session Control Layer</text>
+
+  <g transform="translate(350, 250)">
+    <rect width="260" height="60" rx="8" fill="#8957E5" opacity="0.15"/>
+    <rect width="260" height="60" rx="8" fill="none" stroke="#D2A8FF" stroke-width="2"/>
+    <text x="130" y="26" font-family="-apple-system, sans-serif" font-size="16" font-weight="bold" fill="#D2A8FF" text-anchor="middle">Engine Singleton</text>
+    <text x="130" y="46" font-family="-apple-system, sans-serif" font-size="12" fill="#8B949E" text-anchor="middle">Global Lifecycle &amp; Config</text>
+  </g>
+
+  <g transform="translate(120, 250)">
+    <rect width="160" height="60" rx="6" fill="#DA3633" opacity="0.15"/>
+    <rect width="160" height="60" rx="6" fill="none" stroke="#FF7B72" stroke-width="2"/>
+    <text x="80" y="26" font-family="-apple-system, sans-serif" font-size="14" font-weight="bold" fill="#FF7B72" text-anchor="middle">Danger Detector</text>
+    <text x="80" y="46" font-family="-apple-system, sans-serif" font-size="12" fill="#8B949E" text-anchor="middle">Regex WAF</text>
+  </g>
+
+  <path d="M 350 280 L 290 280" stroke="#FF7B72" stroke-width="2" marker-end="url(#arrow-red)"/>
+  <text x="320" y="272" font-family="-apple-system, sans-serif" font-size="11" fill="#FF7B72" text-anchor="middle">Threat Check</text>
+
+  <path d="M 480 166 L 480 240" stroke="#8B949E" stroke-width="2" marker-end="url(#arrow-gray)"/>
+  <path d="M 710 166 L 710 210 L 550 210 L 550 240" stroke="#8B949E" stroke-width="2" marker-end="url(#arrow-gray)" fill="none"/>
+
+  <rect x="120" y="350" width="680" height="130" rx="8" fill="#0D1117" stroke="#30363D" stroke-width="2"/>
+  <text x="460" y="375" font-family="-apple-system, sans-serif" font-size="15" font-weight="bold" fill="#E6EDF3" text-anchor="middle">SessionPool / SessionManager</text>
+
+  <path d="M 480 310 L 480 340" stroke="#8B949E" stroke-width="2" marker-end="url(#arrow-gray)"/>
+  <text x="530" y="330" font-family="-apple-system, sans-serif" font-size="11" fill="#8B949E" text-anchor="middle">Session Routing</text>
+
+  <g transform="translate(150, 400)">
+    <rect width="120" height="50" rx="6" fill="#21262D" stroke="#30363D" stroke-width="1"/>
+    <text x="60" y="24" font-family="-apple-system, sans-serif" font-size="13" font-weight="bold" fill="#8B949E" text-anchor="middle">GC Loop</text>
+    <text x="60" y="40" font-family="-apple-system, sans-serif" font-size="11" fill="#8B949E" text-anchor="middle">Idle Cleanup</text>
+  </g>
+
+  <g transform="translate(320, 400)">
+    <rect width="180" height="50" rx="6" fill="#238636" opacity="0.15"/>
+    <rect width="180" height="50" rx="6" fill="none" stroke="#3FB950" stroke-width="2"/>
+    <text x="90" y="24" font-family="-apple-system, sans-serif" font-size="14" font-weight="bold" fill="#3FB950" text-anchor="middle">Session (Active)</text>
+    <text x="90" y="40" font-family="-apple-system, sans-serif" font-size="11" fill="#3FB950" text-anchor="middle">PGID Isolation</text>
+  </g>
+
+  <g transform="translate(530, 400)">
+    <rect width="180" height="50" rx="6" fill="#21262D" stroke="#30363D" stroke-width="2" stroke-dasharray="2,2"/>
+    <text x="90" y="30" font-family="-apple-system, sans-serif" font-size="14" font-weight="bold" fill="#8B949E" text-anchor="middle">Session N...</text>
+  </g>
+
+  <rect x="50" y="530" width="800" height="110" rx="8" fill="#161B22" stroke="#30363D" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="70" y="555" font-family="-apple-system, sans-serif" font-size="14" font-weight="bold" fill="#8B949E">3. OS Process Layer</text>
+
+  <g transform="translate(320, 560)">
+    <rect width="390" height="60" rx="6" fill="#1F6FEB" opacity="0.1"/>
+    <rect width="390" height="60" rx="6" fill="none" stroke="#58A6FF" stroke-width="2"/>
+    <text x="195" y="26" font-family="-apple-system, sans-serif" font-size="16" font-weight="bold" fill="#58A6FF" text-anchor="middle">OS Process (Claude Code / Aider)</text>
+    <text x="195" y="46" font-family="-apple-system, sans-serif" font-size="12" fill="#8B949E" text-anchor="middle">Native Tool Sandbox &amp; Workspace Locking</text>
+  </g>
+
+  <path d="M 370 450 L 370 550" stroke="#3FB950" stroke-width="3" marker-end="url(#arrow-green)"/>
+  <text x="310" y="505" font-family="-apple-system, sans-serif" font-size="12" font-weight="bold" fill="#3FB950">Stdin Write</text>
+
+  <path d="M 460 550 L 460 450" stroke="#58A6FF" stroke-width="3" marker-end="url(#arrow-blue)"/>
+  <text x="540" y="505" font-family="-apple-system, sans-serif" font-size="12" font-weight="bold" fill="#58A6FF">Stdout/Stderr Stream</text>
+</svg>
