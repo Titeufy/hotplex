@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -40,53 +41,54 @@ const (
 	cleanupCheckInterval = 1 * time.Minute  // Interval between idle session cleanup checks
 )
 
-// Session represents a persistent Hot-Multiplexing process of Claude Code CLI.
-// It wraps the OS process, standard I/O pipes, and synchronization primitives.
+// Session represents a persistent, long-lived process of the Claude Code CLI.
+// It wraps the OS process, manages standard I/O pipes for real-time multiplexing,
+// and tracks the session's readiness and lifecycle status.
 type Session struct {
-	ID          string // Unique identifier for the persistent session (user provided)
-	CCSessionID string // The deterministic UUID formatted string passed to Claude CLI
-	Config      Config // Configuration and execution context for the session
+	ID          string // Internal SDK identifier (provided by the user)
+	CCSessionID string // The deterministic UUID (v5) passed to Claude CLI for persistent DB storage
+	Config      Config // Snapshot of the configuration used to initialize the session
 	cmd         *exec.Cmd
 	stdin       io.WriteCloser
 	stdout      io.ReadCloser
 	stderr      io.ReadCloser
 	cancel      context.CancelFunc
-	CreatedAt   time.Time     // Timestamp of session creation
-	LastActive  time.Time     // Timestamp of last interaction (for idle GC)
-	Status      SessionStatus // Current state of the session (ready, busy, dead, starting)
+	CreatedAt   time.Time     // When the process was first spawned
+	LastActive  time.Time     // When the process was last used (used for LRU/Idle GC)
+	Status      SessionStatus // Runtime state: starting, ready, busy, or dead
 
 	mu               sync.RWMutex
-	statusResetTimer *time.Timer // Timer for resetting status from Busy to Ready
+	statusResetTimer *time.Timer // Timer to revert Busy status to Ready after predictable CLI inactivity
 
-	// Multiplexing fields
-	callback Callback
-	logger   *slog.Logger // Needed for background readers
+	callback Callback     // Active stream event handler for the current turn
+	logger   *slog.Logger // Context-aware logger initialized with session metadata
 }
 
-// SessionManager defines the interface for managing the persistent process pool.
+// SessionManager defines the behavioral interface for managing a process pool.
 type SessionManager interface {
-	// GetOrCreateSession retrieves an active session or starts a new one if it doesn't exist.
+	// GetOrCreateSession retrieves an active session or performs a Cold Start if none exists.
 	GetOrCreateSession(ctx context.Context, sessionID string, cfg Config) (*Session, error)
-	// GetSession retrieves an active session by its ID without starting a new one.
+	// GetSession performs a non-side-effect lookup of an active session.
 	GetSession(sessionID string) (*Session, bool)
-	// TerminateSession forcefully kills a session and cleans up its resources.
+	// TerminateSession kills the OS process group and removes the session from the pool.
 	TerminateSession(sessionID string) error
-	// ListActiveSessions returns a list of all currently active sessions managed by the pool.
+	// ListActiveSessions provides a snapshot of all tracked sessions.
 	ListActiveSessions() []*Session
-	// Shutdown gracefully stops all sessions and the manager itself.
+	// Shutdown performing a total cleanup of the pool and its background workers.
 	Shutdown()
 }
 
-// SessionPool implements SessionManager.
-// It serves as a global process pool, maintaining active Node.js processes
-// and performing idle garbage collection (GC) to free up memory.
+// SessionPool implements the SessionManager as a thread-safe singleton.
+// It orchestrates the lifecycle of multiple CLI processes, ensuring that
+// idle processes are garbage collected to conserve system memory.
 type SessionPool struct {
-	sessions map[string]*Session
-	mu       sync.RWMutex
-	logger   *slog.Logger
-	timeout  time.Duration // Idle timeout
-	opts     EngineOptions // Global engine settings for security and isolation
-	done     chan struct{} // Shutdown signal
+	sessions  map[string]*Session
+	mu        sync.RWMutex
+	logger    *slog.Logger
+	timeout   time.Duration // Time after which an idle session is eligible for termination
+	opts      EngineOptions // Global constraints shared by all sessions in the pool
+	done      chan struct{} // Internal signal for shutting down background workers
+	markerDir string        // Local filesystem path storing session persistence markers (.lock files)
 }
 
 // NewSessionPool creates a new session manager.
@@ -94,12 +96,24 @@ func NewSessionPool(logger *slog.Logger, timeout time.Duration, opts EngineOptio
 	if logger == nil {
 		logger = slog.Default()
 	}
+	// Initialize Marker Directory
+	homeDir, err := os.UserHomeDir()
+	var markerDir string
+	if err == nil {
+		markerDir = filepath.Join(homeDir, ".hotplex", "sessions")
+		os.MkdirAll(markerDir, 0755) //nolint:errcheck // best effort
+	} else {
+		markerDir = filepath.Join(os.TempDir(), "hotplex_sessions")
+		os.MkdirAll(markerDir, 0755) //nolint:errcheck // fallback
+	}
+
 	sm := &SessionPool{
-		sessions: make(map[string]*Session),
-		logger:   logger,
-		timeout:  timeout,
-		opts:     opts,
-		done:     make(chan struct{}),
+		sessions:  make(map[string]*Session),
+		logger:    logger,
+		timeout:   timeout,
+		opts:      opts,
+		done:      make(chan struct{}),
+		markerDir: markerDir,
 	}
 
 	// Start idle session cleanup goroutine (per spec 6: 30m idle timeout)
@@ -168,7 +182,10 @@ func (sm *SessionPool) cleanupSessionLocked(sessionID string) error {
 
 	delete(sm.sessions, sessionID)
 
-	sm.logger.Info("Terminating session and sweeping OS process group", "session_id", sessionID)
+	sm.logger.Info("Terminating session and sweeping OS process group",
+		"namespace", sm.opts.Namespace,
+		"session_id", sessionID,
+		"cc_session_id", sess.CCSessionID)
 
 	// Stop the status reset timer and clean up session resources
 	// Hold session lock to prevent race with WriteInput
@@ -257,23 +274,34 @@ func (sm *SessionPool) startSession(ctx context.Context, sessionID string, cfg C
 
 	// Build arguments
 	// We always force --output-format stream-json and --print
-
-	// Check if first call logic is needed?
-	// The session manager just starts the process.
-	// Persistence: --session-id is key.
-
-	// We will use "Resume" logic if we trust the session ID persistence on disk,
-	// OR we always treat it as "maybe resume".
-	// The CLI handles "resume" vs "new" based on session ID existence?
-	// Actually CLI has --resume <id> vs --session-id <id>.
-	// Let's stick to --session-id for creation and --resume for re-connection?
-	// Wait, spec says: Args: --print --verbose --output-format stream-json --session-id <sid>
 	args := []string{
 		"--print",
 		"--verbose",
 		"--output-format", "stream-json",
 		"--input-format", "stream-json",
-		"--session-id", ccSessionID,
+	}
+
+	// Create a contextual logger with standard fields for all subsequent logs
+	sessLog := sm.logger.With(
+		"namespace", sm.opts.Namespace,
+		"session_id", sessionID,
+		"cc_session_id", ccSessionID,
+	)
+
+	// 0. Session Persistence Logic (Marker Lock Files)
+	// Claude CLI throws "already in use" if we pass --session-id for an existing session in its DB.
+	// We use an external marker file to track if HotPlex has created this ccSessionID before.
+	markerPath := filepath.Join(sm.markerDir, ccSessionID+".lock")
+	if _, err := os.Stat(markerPath); err == nil {
+		// Marker exists -> Session was previously created in Claude's local DB. We MUST resume.
+		args = append(args, "--resume", ccSessionID)
+		sessLog.Info("Resuming existing persistent CLI session")
+	} else {
+		// Marker missing -> Brand new session.
+		args = append(args, "--session-id", ccSessionID)
+		// Touch the lock file for future restarts
+		_ = os.WriteFile(markerPath, []byte(""), 0644)
+		sessLog.Info("Creating new persistent CLI session")
 	}
 
 	// 1. Permission Mode (Strictly enforced from EngineOptions)
@@ -291,20 +319,9 @@ func (sm *SessionPool) startSession(ctx context.Context, sessionID string, cfg C
 		args = append(args, "--disallowed-tools", strings.Join(sm.opts.DisallowedTools, ","))
 	}
 
-	// 4. System Prompt (Merged: Base + Task)
-	var combinedPrompt string
+	// 4. System Prompt (Base Engine Persona Only)
 	if sm.opts.BaseSystemPrompt != "" {
-		combinedPrompt = sm.opts.BaseSystemPrompt
-	}
-	if cfg.TaskSystemPrompt != "" {
-		if combinedPrompt != "" {
-			combinedPrompt += "\n\n"
-		}
-		combinedPrompt += cfg.TaskSystemPrompt
-	}
-
-	if combinedPrompt != "" {
-		args = append(args, "--append-system-prompt", combinedPrompt)
+		args = append(args, "--append-system-prompt", sm.opts.BaseSystemPrompt)
 	}
 
 	cmd := exec.CommandContext(sessCtx, cliPath, args...)
@@ -345,9 +362,7 @@ func (sm *SessionPool) startSession(ctx context.Context, sessionID string, cfg C
 	// Signal that startup succeeded
 	startedCh <- nil
 
-	sm.logger.Info("OS Process started (Cold Start)",
-		"session_id", sessionID,
-		"cc_session_id", ccSessionID,
+	sessLog.Info("OS Process started (Cold Start)",
 		"pid", cmd.Process.Pid,
 		"pgid", cmd.Process.Pid) // PGID is the same as PID since we use Setpgid: true
 
@@ -363,7 +378,7 @@ func (sm *SessionPool) startSession(ctx context.Context, sessionID string, cfg C
 		CreatedAt:   time.Now(),
 		LastActive:  time.Now(),
 		Status:      SessionStatusStarting,
-		logger:      sm.logger,
+		logger:      sessLog, // Pre-bound contextual logger with namespace/session_id/cc_session_id
 	}
 
 	// Start background readers for multiplexing
@@ -373,9 +388,8 @@ func (sm *SessionPool) startSession(ctx context.Context, sessionID string, cfg C
 	// Monitor process exit to prevent zombies and log unexpected crashes
 	go func() {
 		err := cmd.Wait()
-		if sm.logger != nil {
-			sm.logger.Warn("Session OS process exited unexpectedly",
-				"session_id", sessionID,
+		if sessLog != nil {
+			sessLog.Warn("Session OS process exited unexpectedly",
 				"exit_error", err)
 		}
 	}()
@@ -557,7 +571,7 @@ func (s *Session) readStdout() {
 		// If scanner exited with error, the process is likely dead or in a bad state
 		if err := scanner.Err(); err != nil {
 			if s.logger != nil {
-				s.logger.Error("Session stdout scanner error", "session_id", s.ID, "error", err)
+				s.logger.Error("Session stdout scanner error", "error", err)
 			}
 			s.mu.Lock()
 			s.Status = SessionStatusDead
@@ -583,7 +597,7 @@ func (s *Session) readStdout() {
 	}
 
 	if err := scanner.Err(); err != nil && s.logger != nil {
-		s.logger.Error("Session stdout scanner error", "session_id", s.ID, "error", err)
+		s.logger.Error("Session stdout scanner error", "error", err)
 	}
 }
 
@@ -600,12 +614,12 @@ func (s *Session) readStderr() {
 			continue
 		}
 		if s.logger != nil {
-			s.logger.Warn("Session stderr", "session_id", s.ID, "stderr", line)
+			s.logger.Warn("Session stderr", "stderr", line)
 		}
 	}
 
 	if err := scanner.Err(); err != nil && s.logger != nil {
-		s.logger.Error("Session stderr scanner error", "session_id", s.ID, "error", err)
+		s.logger.Error("Session stderr scanner error", "error", err)
 	}
 }
 
@@ -635,7 +649,9 @@ func (sm *SessionPool) cleanupIdleSessions() {
 		idleTime := now.Sub(sess.LastActive)
 		if idleTime > sm.timeout {
 			sm.logger.Info("Session idle timeout, terminating",
+				"namespace", sm.opts.Namespace,
 				"session_id", sessionID,
+				"cc_session_id", sess.CCSessionID,
 				"idle_duration", idleTime,
 				"timeout", sm.timeout)
 			_ = sm.cleanupSessionLocked(sessionID) //nolint:errcheck // cleanup on idle timeout

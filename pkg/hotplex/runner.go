@@ -7,29 +7,27 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"runtime"
-	"strings"
 	"sync"
 	"time"
 )
 
 // EngineOptions defines the configuration parameters for initializing a new HotPlex Engine.
-// It allows customization of timeouts, logging, pricing models, and session isolation namespaces.
+// It allows customization of timeouts, logging, and foundational security boundaries
+// that apply to all sessions managed by this engine instance.
 type EngineOptions struct {
-	Timeout time.Duration
-	Logger  *slog.Logger
-	// Configurable pricing model for token calculation (USD per million tokens)
-	InputCostPerMillion  float64
-	OutputCostPerMillion float64
-	// Namespace is a configurable string used to generate deterministic UUID v5 Session IDs.
-	// This ensures that the same Conversation ID creates an isolated but persistent sandbox.
+	Timeout time.Duration // Maximum time to wait for a single execution turn to complete
+	Logger  *slog.Logger  // Optional logger instance; defaults to slog.Default()
+
+	// Namespace is used to generate isolated, deterministic UUID v5 Session IDs.
+	// This ensures that the same Conversation ID creates an isolated but persistent sandbox,
+	// preventing cross-application or cross-user session leaks.
 	Namespace string
 
 	// Foundational Security & Context (Engine-level boundaries)
-	PermissionMode   string   // Controls CLI permissions: "default", "bypassPermissions", etc.
-	BaseSystemPrompt string   // Foundational system prompt injected at startup for all sessions
-	AllowedTools     []string // Tools explicitly allowed to be used (e.g. "Bash", "Edit")
-	DisallowedTools  []string // Tools explicitly forbidden from being used
+	PermissionMode   string   // Controls CLI permissions (e.g., "bypass-permissions"). Defaults to strict mode.
+	BaseSystemPrompt string   // Foundational instructions injected at CLI startup for all sessions.
+	AllowedTools     []string // Explicit list of tools allowed (whitelist). If empty, all tools are allowed.
+	DisallowedTools  []string // Explicit list of tools forbidden (blacklist).
 }
 
 // Engine is the unified process integration layer for Hot-Multiplexing.
@@ -44,15 +42,6 @@ type Engine struct {
 	// Session stats for the last execution (thread-safe)
 	statsMu      sync.RWMutex
 	currentStats *SessionStats
-}
-
-// ConversationIDToSessionID converts a database ConversationID to a deterministic string.
-// By combining a namespace (e.g., "geek_userId" or "evolution_userId") with the conversation ID,
-// we guarantee physical sandbox isolation between different modes and users, while enabling
-// reliable session resume (Hot-Multiplexing) across backend requests.
-func (r *Engine) ConversationIDToSessionID(conversationID int64) string {
-	// Let SessionManager handle the UUID mapping, we just return a deterministic string
-	return fmt.Sprintf("%s:conversation:%d", r.opts.Namespace, conversationID)
 }
 
 // NewEngine creates a new HotPlex Engine instance.
@@ -91,7 +80,8 @@ func NewEngine(options EngineOptions) (HotPlexClient, error) {
 // It triggers Graceful Shutdown by cascading termination signals down to the SessionManager,
 // which drops the entire process group (PGID) to prevent zombie processes.
 func (r *Engine) Close() error {
-	r.logger.Info("Closing Engine and sweeping all active pgid sessions", "component", "Engine")
+	r.logger.Info("Closing Engine and sweeping all active pgid sessions",
+		"namespace", r.opts.Namespace)
 
 	r.manager.Shutdown()
 
@@ -109,19 +99,10 @@ func (r *Engine) Execute(ctx context.Context, cfg *Config, prompt string, callba
 			"level", dangerEvent.Level,
 		)
 		// Send danger block event to client (non-critical - error already being returned)
-		callbackSafe := WrapSafe(r.logger, callback)
-		if callbackSafe != nil {
-			callbackSafe("danger_block", dangerEvent)
+		if callbackSafe := WrapSafe(r.logger, callback); callbackSafe != nil {
+			_ = callbackSafe("danger_block", dangerEvent)
 		}
 		return ErrDangerBlocked
-	}
-
-	// Derive SessionID from ConversationID using UUID v5 for deterministic mapping.
-	if cfg.SessionID == "" && cfg.ConversationID > 0 {
-		cfg.SessionID = r.ConversationIDToSessionID(cfg.ConversationID)
-		r.logger.Debug("Engine: derived SessionID from ConversationID",
-			"conversation_id", cfg.ConversationID,
-			"session_id", cfg.SessionID)
 	}
 
 	// Validate configuration
@@ -141,24 +122,24 @@ func (r *Engine) Execute(ctx context.Context, cfg *Config, prompt string, callba
 	}
 
 	// Send thinking event
-	callbackSafe := WrapSafe(r.logger, callback)
-	if callbackSafe != nil {
+	if callbackSafe := WrapSafe(r.logger, callback); callbackSafe != nil {
 		meta := &EventMeta{
 			Status:          "running",
 			TotalDurationMs: 0,
 		}
-		callbackSafe("thinking", &EventWithMeta{EventType: "thinking", EventData: "ai.thinking", Meta: meta})
+		_ = callbackSafe("thinking", &EventWithMeta{EventType: "thinking", EventData: "ai.thinking", Meta: meta})
 	}
 
 	r.logger.Info("Engine: session pipeline ready for hot-multiplexing",
+		"namespace", r.opts.Namespace,
 		"session_id", cfg.SessionID,
-		"user_id", cfg.UserID,
 	)
 
 	// Execute via multiplexed persistent session
 	if err := r.executeWithMultiplex(ctx, cfg, prompt, callback, stats); err != nil {
 		r.logger.Error("Engine: execution failed",
-			"user_id", cfg.UserID,
+			"namespace", r.opts.Namespace,
+			"session_id", cfg.SessionID,
 			"error", err)
 		return err
 	}
@@ -175,6 +156,7 @@ func (r *Engine) Execute(ctx context.Context, cfg *Config, prompt string, callba
 	r.statsMu.Unlock()
 
 	r.logger.Info("Engine: Session completed",
+		"namespace", r.opts.Namespace,
 		"session_id", stats.SessionID,
 		"total_duration_ms", stats.TotalDurationMs,
 		"tool_duration_ms", stats.ToolDurationMs,
@@ -205,9 +187,6 @@ func (r *Engine) ValidateConfig(cfg *Config) error {
 	if cfg.SessionID == "" {
 		return fmt.Errorf("session_id is required")
 	}
-	if cfg.UserID == 0 {
-		return fmt.Errorf("user_id is required")
-	}
 	return nil
 }
 
@@ -222,15 +201,8 @@ func (r *Engine) executeWithMultiplex(
 	callback Callback,
 	stats *SessionStats,
 ) error {
-	// Build system prompt (passed to SessionManager for first-time process creation only)
-	taskSystemPrompt := cfg.TaskSystemPrompt
-	if taskSystemPrompt == "" {
-		taskSystemPrompt = BuildSystemPrompt(cfg.WorkDir, cfg.SessionID, cfg.UserID, cfg.DeviceContext)
-	}
-
 	smCfg := Config{
-		WorkDir:          cfg.WorkDir,
-		TaskSystemPrompt: taskSystemPrompt,
+		WorkDir: cfg.WorkDir,
 	}
 
 	// GetOrCreateSession reuses existing process or starts a new one
@@ -240,8 +212,9 @@ func (r *Engine) executeWithMultiplex(
 	}
 
 	r.logger.Info("Engine: session pipeline ready for hot-multiplexing",
+		"namespace", r.opts.Namespace,
 		"session_id", cfg.SessionID,
-		"user_id", cfg.UserID)
+		"cc_session_id", sess.CCSessionID)
 
 	// Wait for session to be ready (process fully started)
 	readyCtx, readyCancel := context.WithTimeout(ctx, 10*time.Second)
@@ -285,9 +258,8 @@ func (r *Engine) executeWithMultiplex(
 			var msg StreamMessage
 			if err := json.Unmarshal([]byte(line), &msg); err != nil {
 				// Not JSON, handle gracefully
-				callbackSafe := WrapSafe(r.logger, callback)
-				if callbackSafe != nil {
-					callbackSafe("answer", line)
+				if callbackSafe := WrapSafe(r.logger, callback); callbackSafe != nil {
+					_ = callbackSafe("answer", line)
 				}
 				return nil
 			}
@@ -328,7 +300,7 @@ func (r *Engine) executeWithMultiplex(
 		if !ok {
 			callbackSafe := WrapSafe(r.logger, callback)
 			if callbackSafe != nil {
-				callbackSafe(eventType, data)
+				_ = callbackSafe(eventType, data)
 			}
 			return nil
 		}
@@ -350,13 +322,19 @@ func (r *Engine) executeWithMultiplex(
 
 	sess.SetCallback(bridge)
 
+	// Inject Task-level constraints into the prompt for Hot-Multiplexing
+	finalPrompt := prompt
+	if cfg.TaskSystemPrompt != "" {
+		finalPrompt = fmt.Sprintf("[%s]\n\n%s", cfg.TaskSystemPrompt, prompt)
+	}
+
 	// Build stream-json user message payload
 	msgPayload := map[string]any{
 		"type": "user",
 		"message": map[string]any{
 			"role": "user",
 			"content": []map[string]any{
-				{"type": "text", "text": prompt},
+				{"type": "text", "text": finalPrompt},
 			},
 		},
 	}
@@ -418,24 +396,12 @@ func (r *Engine) handleResultMessage(msg StreamMessage, stats *SessionStats, cfg
 		filePaths = append(filePaths, path)
 	}
 
-	// Calculate total cost with fallback if CLI doesn't report it
+	// Use cost reported by CLI directly (authoritative source)
 	totalCostUSD := msg.TotalCostUSD
-	if totalCostUSD == 0 && stats.InputTokens+stats.OutputTokens > 0 {
-		var inputCostPerMillion, outputCostPerMillion float64
-		if r.opts.InputCostPerMillion > 0 {
-			inputCostPerMillion = r.opts.InputCostPerMillion
-		}
-		if r.opts.OutputCostPerMillion > 0 {
-			outputCostPerMillion = r.opts.OutputCostPerMillion
-		}
-
-		inputCost := float64(stats.InputTokens) * inputCostPerMillion / 1_000_000
-		outputCost := float64(stats.OutputTokens) * outputCostPerMillion / 1_000_000
-		totalCostUSD = inputCost + outputCost
-	}
 
 	// Log session completion stats with explicit performance markers
 	r.logger.Info("Engine: multiplexed turn completed",
+		"namespace", r.opts.Namespace,
 		"session_id", cfg.SessionID,
 		"duration_ms", stats.TotalDurationMs,
 		"input_tokens", stats.InputTokens,
@@ -447,10 +413,8 @@ func (r *Engine) handleResultMessage(msg StreamMessage, stats *SessionStats, cfg
 	// Send session_stats event to frontend (non-critical)
 	if callback != nil {
 		callbackSafe := WrapSafe(r.logger, callback)
-		callbackSafe("session_stats", &SessionStatsData{
+		_ = callbackSafe("session_stats", &SessionStatsData{
 			SessionID:            cfg.SessionID,
-			ConversationID:       cfg.ConversationID,
-			UserID:               cfg.UserID,
 			StartTime:            stats.StartTime.Unix(),
 			EndTime:              time.Now().Unix(),
 			TotalDurationMs:      stats.TotalDurationMs,
@@ -679,7 +643,7 @@ func (r *Engine) dispatchCallback(msg StreamMessage, callback Callback, stats *S
 		for _, block := range msg.GetContentBlocks() {
 			if block.Type == "text" && block.Text != "" {
 				if callbackSafe != nil {
-					callbackSafe("answer", &EventWithMeta{EventType: "answer", EventData: block.Text, Meta: &EventMeta{TotalDurationMs: totalDuration}})
+					_ = callbackSafe("answer", &EventWithMeta{EventType: "answer", EventData: block.Text, Meta: &EventMeta{TotalDurationMs: totalDuration}})
 				}
 			}
 		}
@@ -701,16 +665,11 @@ func (r *Engine) GetCLIVersion() (string, error) {
 // This is the implementation for session.stop from the spec.
 func (r *Engine) StopSession(sessionID string, reason string) error {
 	r.logger.Info("Engine: stopping session",
+		"namespace", r.opts.Namespace,
 		"session_id", sessionID,
 		"reason", reason)
 
 	return r.manager.TerminateSession(sessionID)
-}
-
-// StopSessionByConversationID terminates a session by its conversation ID.
-func (r *Engine) StopSessionByConversationID(conversationID int64, reason string) error {
-	sessionID := r.ConversationIDToSessionID(conversationID)
-	return r.StopSession(sessionID, reason)
 }
 
 // SetDangerAllowPaths sets the allowed safe paths for the danger detector.
@@ -727,90 +686,4 @@ func (r *Engine) SetDangerBypassEnabled(enabled bool) {
 // GetDangerDetector returns the danger detector instance.
 func (r *Engine) GetDangerDetector() *Detector {
 	return r.dangerDetector
-}
-
-// BuildSystemPrompt provides minimal, high-signal context for Claude Code CLI.
-func BuildSystemPrompt(workDir, sessionID string, userID int32, deviceContext string) string {
-	return BuildSystemPromptWithRuntime(workDir, sessionID, userID, deviceContext, getRuntimeInfo())
-}
-
-// BuildSystemPromptWithRuntime is the implementation that allows runtime info injection.
-func BuildSystemPromptWithRuntime(workDir, sessionID string, userID int32, deviceContext string, runtimeInfo RuntimeInfo) string {
-	osName := runtimeInfo.OS
-	arch := runtimeInfo.Arch
-	if osName == "darwin" {
-		osName = "macOS"
-	}
-
-	timestamp := runtimeInfo.Timestamp.Format("2006-01-02 15:04:05")
-
-	// Try to parse device context for better formatting
-	var contextMap map[string]any
-	userAgent := "Unknown"
-	deviceInfo := "Unknown"
-	if deviceContext != "" {
-		// Optimization: only attempt JSON parse if it looks like JSON
-		trimmed := strings.TrimSpace(deviceContext)
-		if strings.HasPrefix(trimmed, "{") {
-			if err := json.Unmarshal([]byte(deviceContext), &contextMap); err == nil {
-				if ua, ok := contextMap["userAgent"].(string); ok {
-					userAgent = ua
-				}
-				if mobile, ok := contextMap["isMobile"].(bool); ok {
-					if mobile {
-						deviceInfo = "Mobile"
-					} else {
-						deviceInfo = "Desktop"
-					}
-				}
-				// Add more fields if available (screen, language, etc.)
-				if w, ok := contextMap["screenWidth"].(float64); ok {
-					if h, ok := contextMap["screenHeight"].(float64); ok {
-						deviceInfo = fmt.Sprintf("%s (%dx%d)", deviceInfo, int(w), int(h))
-					}
-				}
-				if lang, ok := contextMap["language"].(string); ok {
-					deviceInfo = fmt.Sprintf("%s, Language: %s", deviceInfo, lang)
-				}
-			} else {
-				// Fallback: use raw string if JSON parse failed
-				userAgent = deviceContext
-			}
-		} else {
-			// Not JSON - use raw string
-			userAgent = deviceContext
-		}
-	}
-
-	return fmt.Sprintf(`# Context
-
-You are running inside DivineSense, an intelligent assistant system.
-
-**User Interaction**: Users type questions in their web browser, which invokes you via a Go backend. Your response streams back to their browser in real-time. **Always respond in Chinese (Simplified).**
-
-- **User ID**: %d
-- **Client Device**: %s
-- **User Agent**: %s
-- **Server OS**: %s (%s)
-- **Time**: %s
-- **Workspace**: %s
-- **Mode**: Non-interactive headless (--print)
-- **Session**: %s (persists via --session-id/--resume)
-`, userID, deviceInfo, userAgent, osName, arch, timestamp, workDir, sessionID)
-}
-
-// RuntimeInfo contains runtime information for system prompt generation.
-type RuntimeInfo struct {
-	OS        string
-	Arch      string
-	Timestamp time.Time
-}
-
-// getRuntimeInfo returns the current runtime information.
-func getRuntimeInfo() RuntimeInfo {
-	return RuntimeInfo{
-		OS:        runtime.GOOS,
-		Arch:      runtime.GOARCH,
-		Timestamp: time.Now(),
-	}
 }

@@ -56,7 +56,7 @@ func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("Failed to upgrade websocket connection", "error", err)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	h.logger.Info("Client connected via WebSocket", "addr", r.RemoteAddr)
 
@@ -112,7 +112,6 @@ func (h *WebSocketHandler) handleExecute(conn *websocket.Conn, req ClientRequest
 	cfg := &hotplex.Config{
 		WorkDir:   workDir,
 		SessionID: sessionID,
-		UserID:    1, // Default user
 	}
 
 	h.logger.Info("Handling execute request", "session_id", sessionID, "prompt_length", len(req.Prompt))

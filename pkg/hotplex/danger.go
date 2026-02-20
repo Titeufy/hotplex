@@ -21,48 +21,49 @@ const (
 	MaxDisplayLength = 100
 )
 
-// DangerLevel represents the severity level of a dangerous operation.
+// DangerLevel classifies the severity of a detected potentially harmful operation.
 type DangerLevel int
 
 const (
-	// DangerLevelCritical can cause irreversible data loss or system damage.
+	// DangerLevelCritical represents irreparable damage (e.g., recursive root deletion or disk wiping).
 	DangerLevelCritical DangerLevel = iota
-	// DangerLevelHigh can cause significant data loss or system impact.
+	// DangerLevelHigh represents significant damage potential (e.g., deleting user home or system config).
 	DangerLevelHigh
-	// DangerLevelModerate may cause unintended changes.
+	// DangerLevelModerate represents unintended side effects (e.g., resetting Git history).
 	DangerLevelModerate
 )
 
-// DangerPattern defines a dangerous command pattern to detect.
+// DangerPattern defines a signature for a dangerous operation, processed via regular expressions.
 type DangerPattern struct {
-	Pattern     *regexp.Regexp
-	Description string
-	Level       DangerLevel
-	Category    string // "file_delete", "system", "network", "permission"
+	Pattern     *regexp.Regexp // The compiled regex identifying the dangerous sequence
+	Description string         // Human-readable explanation of why this pattern is blocked
+	Level       DangerLevel    // Severity used for logging and alerting
+	Category    string         // Functional category (e.g., "file_delete", "network", "system")
 }
 
-// DangerBlockEvent represents a detected dangerous operation that was blocked.
+// DangerBlockEvent contains detailed forensics after a dangerous operation is successfully intercepted.
 type DangerBlockEvent struct {
-	Operation      string      `json:"operation"`
-	Reason         string      `json:"reason"`
-	PatternMatched string      `json:"pattern_matched"`
-	Level          DangerLevel `json:"level"`
-	Category       string      `json:"category"`
-	BypassAllowed  bool        `json:"bypass_allowed"`
-	Suggestions    []string    `json:"suggestions,omitempty"`
+	Operation      string      `json:"operation"`             // The specific command line that triggered the block
+	Reason         string      `json:"reason"`                // Description of the threat
+	PatternMatched string      `json:"pattern_matched"`       // The specific signature that matched the input
+	Level          DangerLevel `json:"level"`                 // Severity level
+	Category       string      `json:"category"`              // Category classification
+	BypassAllowed  bool        `json:"bypass_allowed"`        // Whether the user has administrative privileges to bypass this block
+	Suggestions    []string    `json:"suggestions,omitempty"` // Safe alternatives to the blocked command
 }
 
-// Detector detects potentially dangerous commands before execution.
-// Implements security layer per spec 6: "Frontend Confirmation + Git Recovery".
+// Detector acts as a Web Application Firewall (WAF) for the local system.
+// It inspects LLM-generated commands before they are dispatched to the host shell,
+// enforcing strict security boundaries regardless of the model's own safety alignment.
 type Detector struct {
-	patterns []*DangerPattern
-	logger   *slog.Logger
-	mu       sync.RWMutex
+	patterns []*DangerPattern // Registry of active security signatures
+	logger   *slog.Logger     // Event logger for security forensics
+	mu       sync.RWMutex     // Protects concurrent configuration updates
 
-	// Allowlist of paths that are safe to operate on (e.g., project directory)
+	// allowPaths defines a whitelist of directories where file operations are permitted.
 	allowPaths []string
 
-	// Whether bypass mode is enabled (admin only, Evolution mode)
+	// bypassEnabled allows the security layer to be deactivated (admin/evolution mode only).
 	bypassEnabled bool
 }
 

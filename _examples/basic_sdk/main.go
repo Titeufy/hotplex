@@ -44,8 +44,7 @@ func main() {
 	// This configuration dictates how a specific task is executed within the Engine.
 	cfg := &hotplex.Config{
 		WorkDir:          "/tmp",                                                 // The isolated working directory for the agent to operate in
-		ConversationID:   42,                                                     // Ensures deterministic generation of UUID v5
-		UserID:           1,                                                      // Identifier for the user initiating the request (used for auditing and context)
+		SessionID:        "conversation:44",                                      // Unique session identifier for process pool lookup
 		TaskSystemPrompt: "Always add a short comment to the code you generate.", // Specific command for this turn
 	}
 

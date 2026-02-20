@@ -29,7 +29,7 @@ func main() {
 		logger.Error("Failed to initialize HotPlex engine", "error", err)
 		os.Exit(1)
 	}
-	defer engine.Close()
+	defer func() { _ = engine.Close() }()
 
 	// Initialize WebSocket handler
 	wsHandler := server.NewWebSocketHandler(engine, logger)
@@ -38,7 +38,7 @@ func main() {
 	http.Handle("/ws/v1/agent", wsHandler)
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
 	port := os.Getenv("PORT")

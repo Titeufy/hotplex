@@ -78,8 +78,6 @@ func NewEventWithMeta(eventType, eventData string, meta *EventMeta) *EventWithMe
 // SessionStatsData represents the final session statistics sent to the frontend and stored in database.
 type SessionStatsData struct {
 	SessionID            string   `json:"session_id"`
-	ConversationID       int64    `json:"conversation_id"` // Database conversation ID
-	UserID               int32    `json:"user_id"`
 	StartTime            int64    `json:"start_time"` // Unix timestamp
 	EndTime              int64    `json:"end_time"`   // Unix timestamp
 	TotalDurationMs      int64    `json:"total_duration_ms"`
