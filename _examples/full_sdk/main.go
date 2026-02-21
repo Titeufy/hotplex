@@ -20,13 +20,24 @@ func main() {
 
 	fmt.Println("=== HotPlex Full SDK Demo: Lifecycle & Persistence ===")
 
-	// 2. Initialize Engine with a short IdleTimeout (1 minute) to demonstrate GC
+	// 2. Create a custom Provider (optional - demonstrates Provider abstraction)
+	// If Provider is nil, Engine will use ClaudeCodeProvider by default.
+	provider, err := hotplex.NewClaudeCodeProvider(hotplex.ProviderConfig{
+		DefaultPermissionMode: "bypass-permissions",
+		AllowedTools:          []string{"Bash", "Read", "Edit", "Write"},
+	}, logger)
+	if err != nil {
+		panic(fmt.Errorf("create provider: %w", err))
+	}
+
+	// 3. Initialize Engine with Provider and short IdleTimeout to demonstrate GC
 	// Note: Internal cleanup loop runs every 1 minute.
 	opts := hotplex.EngineOptions{
 		Namespace:   "demo_lifecycle",
 		Timeout:     5 * time.Minute,
 		IdleTimeout: 10 * time.Second, // We set it short for demonstration, but it cleans every 1m
 		Logger:      logger,
+		Provider:    provider, // Custom provider (or nil for default ClaudeCodeProvider)
 	}
 
 	engine, err := hotplex.NewEngine(opts)
