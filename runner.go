@@ -31,6 +31,10 @@ type EngineOptions struct {
 	BaseSystemPrompt string   // Foundational instructions injected at CLI startup for all sessions.
 	AllowedTools     []string // Explicit list of tools allowed (whitelist). If empty, all tools are allowed.
 	DisallowedTools  []string // Explicit list of tools forbidden (blacklist).
+
+	// AdminToken is the secret required to toggle security bypass mode.
+	// If empty, bypass will be disabled for security.
+	AdminToken string
 }
 
 // Engine is the core Control Plane for AI CLI agent integration.
@@ -73,6 +77,9 @@ func NewEngine(options EngineOptions) (HotPlexClient, error) {
 
 	// Initialize danger detector for security
 	dangerDetector := NewDetector(logger)
+	if options.AdminToken != "" {
+		dangerDetector.SetAdminToken(options.AdminToken)
+	}
 
 	return &Engine{
 		opts:           options,
@@ -686,8 +693,8 @@ func (r *Engine) SetDangerAllowPaths(paths []string) {
 
 // SetDangerBypassEnabled enables or disables danger detection bypass.
 // WARNING: Only use for Evolution mode (admin only).
-func (r *Engine) SetDangerBypassEnabled(enabled bool) {
-	r.dangerDetector.SetBypassEnabled(enabled)
+func (r *Engine) SetDangerBypassEnabled(token string, enabled bool) error {
+	return r.dangerDetector.SetBypassEnabled(token, enabled)
 }
 
 // GetDangerDetector returns the danger detector instance.

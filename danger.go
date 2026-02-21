@@ -2,6 +2,7 @@ package hotplex
 
 import (
 	"bufio"
+	"crypto/subtle"
 	"fmt"
 	"log/slog"
 	"os"
@@ -65,6 +66,9 @@ type Detector struct {
 
 	// bypassEnabled allows the security layer to be deactivated (admin/evolution mode only).
 	bypassEnabled bool
+
+	// adminToken is required to toggle bypassEnabled.
+	adminToken string
 }
 
 // NewDetector creates a new danger detector with default patterns.
@@ -82,6 +86,13 @@ func NewDetector(logger *slog.Logger) *Detector {
 	dd.loadDefaultPatterns()
 
 	return dd
+}
+
+// SetAdminToken sets the token required to toggle bypass mode.
+func (dd *Detector) SetAdminToken(token string) {
+	dd.mu.Lock()
+	defer dd.mu.Unlock()
+	dd.adminToken = token
 }
 
 // loadDefaultPatterns initializes the built-in dangerous command patterns.
@@ -405,16 +416,30 @@ func (dd *Detector) SetAllowPaths(paths []string) {
 }
 
 // SetBypassEnabled enables or disables bypass mode.
+// Requires a valid admin token to succeed.
 // When enabled, dangerous operations are NOT blocked (admin/Evolution mode only).
-func (dd *Detector) SetBypassEnabled(enabled bool) {
+func (dd *Detector) SetBypassEnabled(token string, enabled bool) error {
 	dd.mu.Lock()
 	defer dd.mu.Unlock()
+
+	// Constant-time comparison to prevent timing attacks
+	if dd.adminToken == "" {
+		dd.logger.Error("Bypass toggle attempted but no admin token is configured")
+		return fmt.Errorf("security: admin token not configured")
+	}
+
+	if subtle.ConstantTimeCompare([]byte(token), []byte(dd.adminToken)) != 1 {
+		dd.logger.Warn("Unauthorized bypass toggle attempt", "enabled", enabled)
+		return fmt.Errorf("security: unauthorized bypass toggle attempt")
+	}
+
 	dd.bypassEnabled = enabled
 	if enabled {
-		dd.logger.Warn("Danger detector bypass ENABLED - use with caution!")
+		dd.logger.Warn("AUDIT: Danger detector bypass ENABLED by administrator")
 	} else {
-		dd.logger.Info("Danger detector bypass disabled")
+		dd.logger.Info("AUDIT: Danger detector bypass disabled by administrator")
 	}
+	return nil
 }
 
 // IsPathAllowed checks if a path is in the allowlist.

@@ -185,7 +185,13 @@ func TestEngine_DangerDetectorMethods(t *testing.T) {
 	}
 
 	// Test SetDangerBypassEnabled
-	engine.SetDangerBypassEnabled(true)
+	token := "test-token"
+	detector.SetAdminToken(token)
+
+	err := engine.SetDangerBypassEnabled(token, true)
+	if err != nil {
+		t.Errorf("SetDangerBypassEnabled() unexpected error: %v", err)
+	}
 	// After bypass, dangerous input should not be blocked
 	if event := detector.CheckInput("rm -rf /"); event != nil {
 		t.Error("Danger should be bypassed")

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -29,10 +30,17 @@ func main() {
 		}
 	}
 
+	// Load API key for admin operations
+	adminToken := os.Getenv("HOTPLEX_API_KEY")
+	if keys := os.Getenv("HOTPLEX_API_KEYS"); keys != "" {
+		adminToken = strings.Split(keys, ",")[0]
+	}
+
 	opts := hotplex.EngineOptions{
 		Timeout:     30 * time.Minute,
 		IdleTimeout: idleTimeout,
 		Logger:      logger,
+		AdminToken:  adminToken,
 	}
 
 	engine, err := hotplex.NewEngine(opts)
