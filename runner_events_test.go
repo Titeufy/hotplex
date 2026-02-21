@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/hrygo/hotplex/internal/engine"
 )
 
 // TestEngine_dispatchCallback tests the dispatchCallback method
@@ -353,11 +355,8 @@ func TestEngine_handleStreamRawLine(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// Create a mock manager with session
-	mockMgr := &mockSessionManager{sessions: make(map[string]*Session)}
-	mockMgr.sessions["test-session"] = &Session{
-		Status:       SessionStatusBusy,
-		statusChange: make(chan SessionStatus, 10),
-	}
+	mockMgr := &mockSessionManager{sessions: make(map[string]*engine.Session)}
+	mockMgr.sessions["test-session"] = engine.NewTestSession("test-session", engine.SessionStatusBusy)
 
 	engine := &Engine{
 		opts:    EngineOptions{Namespace: "test"},
@@ -444,11 +443,8 @@ func TestEngine_handleResultMessage(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// Create a mock manager for testing
-	mockMgr := &mockSessionManager{sessions: make(map[string]*Session)}
-	mockMgr.sessions["test-session"] = &Session{
-		Status:       SessionStatusBusy,
-		statusChange: make(chan SessionStatus, 10),
-	}
+	mockMgr := &mockSessionManager{sessions: make(map[string]*engine.Session)}
+	mockMgr.sessions["test-session"] = engine.NewTestSession("test-session", engine.SessionStatusBusy)
 
 	engine := &Engine{
 		opts:    EngineOptions{Namespace: "test"},

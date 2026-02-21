@@ -12,32 +12,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hrygo/hotplex/internal/engine"
 	"github.com/hrygo/hotplex/internal/security"
 )
 
 // EngineOptions defines the configuration parameters for initializing a new HotPlex Engine.
 // It allows customization of timeouts, logging, and foundational security boundaries
 // that apply to all sessions managed by this engine instance.
-type EngineOptions struct {
-	Timeout     time.Duration // Maximum time to wait for a single execution turn to complete
-	IdleTimeout time.Duration // Time after which an idle session is eligible for termination
-	Logger      *slog.Logger  // Optional logger instance; defaults to slog.Default()
-
-	// Namespace is used to generate isolated, deterministic UUID v5 Session IDs.
-	// This ensures that the same Conversation ID creates an isolated but persistent sandbox,
-	// preventing cross-application or cross-user session leaks.
-	Namespace string
-
-	// Foundational Security & Context (Engine-level boundaries)
-	PermissionMode   string   // Controls CLI permissions (e.g., "bypass-permissions"). Defaults to strict mode.
-	BaseSystemPrompt string   // Foundational instructions injected at CLI startup for all sessions.
-	AllowedTools     []string // Explicit list of tools allowed (whitelist). If empty, all tools are allowed.
-	DisallowedTools  []string // Explicit list of tools forbidden (blacklist).
-
-	// AdminToken is the secret required to toggle security bypass mode.
-	// If empty, bypass will be disabled for security.
-	AdminToken string
-}
+type EngineOptions = engine.EngineOptions
 
 // Engine is the core Control Plane for AI CLI agent integration.
 // Configured as a long-lived Singleton, it transforms local CLI tools into production-ready
@@ -47,7 +29,7 @@ type Engine struct {
 	opts           EngineOptions
 	cliPath        string
 	logger         *slog.Logger
-	manager        SessionManager
+	manager        engine.SessionManager
 	dangerDetector *security.Detector
 	// Session stats for the last execution (thread-safe)
 	statsMu      sync.RWMutex
@@ -87,7 +69,7 @@ func NewEngine(options EngineOptions) (HotPlexClient, error) {
 		opts:           options,
 		cliPath:        cliPath,
 		logger:         logger,
-		manager:        NewSessionPool(logger, options.IdleTimeout, options, cliPath), // User defined or default 30m
+		manager:        engine.NewSessionPool(logger, options.IdleTimeout, options, cliPath),
 		dangerDetector: dangerDetector,
 	}, nil
 }
@@ -233,12 +215,13 @@ func (r *Engine) executeWithMultiplex(
 	callback Callback,
 	stats *SessionStats,
 ) error {
-	smCfg := Config{
+	// Convert to engine session config
+	sessionCfg := engine.SessionConfig{
 		WorkDir: cfg.WorkDir,
 	}
 
 	// GetOrCreateSession reuses existing process or starts a new one
-	sess, err := r.manager.GetOrCreateSession(ctx, cfg.SessionID, smCfg)
+	sess, err := r.manager.GetOrCreateSession(ctx, cfg.SessionID, sessionCfg)
 	if err != nil {
 		return fmt.Errorf("get or create session: %w", err)
 	}
@@ -255,7 +238,7 @@ func (r *Engine) executeWithMultiplex(
 	// Create doneChan for this turn
 	doneChan := make(chan struct{})
 
-	sess.SetCallback(r.createEventBridge(cfg, callback, stats, doneChan))
+	sess.SetCallback(engine.Callback(r.createEventBridge(cfg, callback, stats, doneChan)))
 
 	// Inject Task-level constraints into the prompt for Hot-Multiplexing
 	finalPrompt := prompt
@@ -294,24 +277,24 @@ func (r *Engine) executeWithMultiplex(
 	}
 }
 
-func (r *Engine) waitForSession(ctx context.Context, sess *Session, sessionID string) error {
+func (r *Engine) waitForSession(ctx context.Context, sess *engine.Session, sessionID string) error {
 	for {
 		status := sess.GetStatus()
-		if status == SessionStatusReady || status == SessionStatusBusy {
+		if status == engine.SessionStatusReady || status == engine.SessionStatusBusy {
 			return nil
 		}
-		if status == SessionStatusDead {
+		if status == engine.SessionStatusDead {
 			return fmt.Errorf("session %s is dead, cannot execute", sessionID)
 		}
 
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case s := <-sess.statusChange:
-			if s == SessionStatusReady || s == SessionStatusBusy {
+		case s := <-sess.GetStatusChange():
+			if s == engine.SessionStatusReady || s == engine.SessionStatusBusy {
 				return nil
 			}
-			if s == SessionStatusDead {
+			if s == engine.SessionStatusDead {
 				return fmt.Errorf("session %s is dead, cannot execute", sessionID)
 			}
 		}
@@ -477,7 +460,7 @@ func (r *Engine) handleResultMessage(msg StreamMessage, stats *SessionStats, cfg
 	// Turn is done, Session is now Ready for next input
 	// Find the session in manager to set it to Ready
 	if sess, ok := r.manager.GetSession(cfg.SessionID); ok {
-		sess.SetStatus(SessionStatusReady)
+		sess.SetStatus(engine.SessionStatusReady)
 	}
 }
 

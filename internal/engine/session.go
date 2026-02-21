@@ -258,3 +258,14 @@ func (s *Session) ReadStderr() {
 		s.logger.Error("Session stderr scanner error", "error", err)
 	}
 }
+
+// NewTestSession creates a Session for testing purposes.
+// This should only be used in test code.
+func NewTestSession(id string, status SessionStatus) *Session {
+	return &Session{
+		ID:           id,
+		CCSessionID:  "test-cc-session",
+		Status:       status,
+		statusChange: make(chan SessionStatus, 10),
+	}
+}

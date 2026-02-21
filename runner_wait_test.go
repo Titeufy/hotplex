@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/hrygo/hotplex/internal/engine"
 )
 
 func TestEngine_createEventBridge(t *testing.T) {
@@ -85,11 +87,8 @@ func TestEngine_createEventBridge_ResultMessage(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// Create mock manager with session
-	mockMgr := &mockSessionManager{sessions: make(map[string]*Session)}
-	mockMgr.sessions["test-session"] = &Session{
-		Status:       SessionStatusBusy,
-		statusChange: make(chan SessionStatus, 10),
-	}
+	mockMgr := &mockSessionManager{sessions: make(map[string]*engine.Session)}
+	mockMgr.sessions["test-session"] = engine.NewTestSession("test-session", engine.SessionStatusBusy)
 
 	engine := &Engine{
 		opts:    EngineOptions{Namespace: "test"},
@@ -223,11 +222,8 @@ func TestEngine_createEventBridge_NonStreamMessage(t *testing.T) {
 func TestEngine_createEventBridge_WithCallback(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	mockMgr := &mockSessionManager{sessions: make(map[string]*Session)}
-	mockMgr.sessions["test-session"] = &Session{
-		Status:       SessionStatusBusy,
-		statusChange: make(chan SessionStatus, 10),
-	}
+	mockMgr := &mockSessionManager{sessions: make(map[string]*engine.Session)}
+	mockMgr.sessions["test-session"] = engine.NewTestSession("test-session", engine.SessionStatusBusy)
 
 	engine := &Engine{
 		opts:    EngineOptions{Namespace: "test"},
@@ -295,60 +291,48 @@ func TestEngine_createEventBridge_RawLineNotString(t *testing.T) {
 
 func TestEngine_waitForSession(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	engine := &Engine{
+	eng := &Engine{
 		opts:   EngineOptions{Namespace: "test"},
 		logger: logger,
 	}
 
 	t.Run("session ready", func(t *testing.T) {
-		sess := &Session{
-			Status:       SessionStatusReady,
-			statusChange: make(chan SessionStatus, 10),
-		}
+		sess := engine.NewTestSession("test", engine.SessionStatusReady)
 
 		ctx := context.Background()
-		err := engine.waitForSession(ctx, sess, "test-session")
+		err := eng.waitForSession(ctx, sess, "test-session")
 		if err != nil {
 			t.Errorf("waitForSession error: %v", err)
 		}
 	})
 
 	t.Run("session busy", func(t *testing.T) {
-		sess := &Session{
-			Status:       SessionStatusBusy,
-			statusChange: make(chan SessionStatus, 10),
-		}
+		sess := engine.NewTestSession("test", engine.SessionStatusBusy)
 
 		ctx := context.Background()
-		err := engine.waitForSession(ctx, sess, "test-session")
+		err := eng.waitForSession(ctx, sess, "test-session")
 		if err != nil {
 			t.Errorf("waitForSession error: %v", err)
 		}
 	})
 
 	t.Run("session dead", func(t *testing.T) {
-		sess := &Session{
-			Status:       SessionStatusDead,
-			statusChange: make(chan SessionStatus, 10),
-		}
+		sess := engine.NewTestSession("test", engine.SessionStatusDead)
 
 		ctx := context.Background()
-		err := engine.waitForSession(ctx, sess, "test-session")
+		err := eng.waitForSession(ctx, sess, "test-session")
 		if err == nil {
 			t.Error("waitForSession should fail for dead session")
 		}
 	})
 
 	t.Run("context cancelled", func(t *testing.T) {
-		sess := &Session{
-			Status:       SessionStatusStarting,
-			statusChange: make(chan SessionStatus, 10),
-		}
+		sess := engine.NewTestSession("test", engine.SessionStatusStarting)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately
 
-		err := engine.waitForSession(ctx, sess, "test-session")
+		err := eng.waitForSession(ctx, sess, "test-session")
 		if err != context.Canceled {
 			t.Errorf("waitForSession error = %v, want context.Canceled", err)
 		}
@@ -357,25 +341,22 @@ func TestEngine_waitForSession(t *testing.T) {
 
 func TestEngine_waitForSession_StatusChange(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	engine := &Engine{
+	eng := &Engine{
 		opts:   EngineOptions{Namespace: "test"},
 		logger: logger,
 	}
 
-	sess := &Session{
-		Status:       SessionStatusStarting,
-		statusChange: make(chan SessionStatus, 10),
-	}
+	sess := engine.NewTestSession("test", engine.SessionStatusStarting)
 
 	ctx := context.Background()
 
 	// Send status change in goroutine
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		sess.SetStatus(SessionStatusReady)
+		sess.SetStatus(engine.SessionStatusReady)
 	}()
 
-	err := engine.waitForSession(ctx, sess, "test-session")
+	err := eng.waitForSession(ctx, sess, "test-session")
 	if err != nil {
 		t.Errorf("waitForSession error: %v", err)
 	}

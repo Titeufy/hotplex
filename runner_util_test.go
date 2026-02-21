@@ -3,6 +3,7 @@ package hotplex
 import (
 	"testing"
 
+	"github.com/hrygo/hotplex/internal/engine"
 	"github.com/hrygo/hotplex/internal/security"
 )
 
@@ -35,7 +36,7 @@ func TestCloseDoneChan_NonBlocking(t *testing.T) {
 
 func TestEngine_Close(t *testing.T) {
 	logger := newTestLogger()
-	mockManager := &mockSessionManager{sessions: make(map[string]*Session)}
+	mockManager := &mockSessionManager{sessions: make(map[string]*engine.Session)}
 
 	engine := &Engine{
 		opts:    EngineOptions{Namespace: "test"},
@@ -69,7 +70,7 @@ func TestEngine_GetCLIVersion(t *testing.T) {
 func TestEngine_StopSession_WithMockManager(t *testing.T) {
 	logger := newTestLogger()
 	mockManager := &mockSessionManager{
-		sessions: make(map[string]*Session),
+		sessions: make(map[string]*engine.Session),
 	}
 
 	engine := &Engine{

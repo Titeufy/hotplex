@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hrygo/hotplex/internal/engine"
 	"github.com/hrygo/hotplex/internal/security"
 )
 
@@ -236,11 +237,11 @@ func TestEngine_Execute_MkdirAllFailure(t *testing.T) {
 // mockFailingSessionManager always returns error on GetOrCreateSession
 type mockFailingSessionManager struct{}
 
-func (m *mockFailingSessionManager) GetOrCreateSession(ctx context.Context, sessionID string, cfg Config) (*Session, error) {
+func (m *mockFailingSessionManager) GetOrCreateSession(ctx context.Context, sessionID string, cfg engine.SessionConfig) (*engine.Session, error) {
 	return nil, fmt.Errorf("mock error: session creation failed")
 }
 
-func (m *mockFailingSessionManager) GetSession(sessionID string) (*Session, bool) {
+func (m *mockFailingSessionManager) GetSession(sessionID string) (*engine.Session, bool) {
 	return nil, false
 }
 
@@ -248,7 +249,7 @@ func (m *mockFailingSessionManager) TerminateSession(sessionID string) error {
 	return nil
 }
 
-func (m *mockFailingSessionManager) ListActiveSessions() []*Session {
+func (m *mockFailingSessionManager) ListActiveSessions() []*engine.Session {
 	return nil
 }
 
@@ -258,7 +259,7 @@ func TestEngine_StopSession(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// Create engine with a mock manager
-	mockManager := &mockSessionManager{sessions: make(map[string]*Session)}
+	mockManager := &mockSessionManager{sessions: make(map[string]*engine.Session)}
 	engine := &Engine{
 		opts:    EngineOptions{Namespace: "test"},
 		logger:  logger,
@@ -309,17 +310,17 @@ func TestEngine_DangerDetectorMethods(t *testing.T) {
 
 // mockSessionManager for testing
 type mockSessionManager struct {
-	sessions map[string]*Session
+	sessions map[string]*engine.Session
 }
 
-func (m *mockSessionManager) GetOrCreateSession(ctx context.Context, sessionID string, cfg Config) (*Session, error) {
+func (m *mockSessionManager) GetOrCreateSession(ctx context.Context, sessionID string, cfg engine.SessionConfig) (*engine.Session, error) {
 	if sess, ok := m.sessions[sessionID]; ok {
 		return sess, nil
 	}
 	return nil, &sessionNotFoundError{}
 }
 
-func (m *mockSessionManager) GetSession(sessionID string) (*Session, bool) {
+func (m *mockSessionManager) GetSession(sessionID string) (*engine.Session, bool) {
 	sess, ok := m.sessions[sessionID]
 	return sess, ok
 }
@@ -329,8 +330,8 @@ func (m *mockSessionManager) TerminateSession(sessionID string) error {
 	return nil
 }
 
-func (m *mockSessionManager) ListActiveSessions() []*Session {
-	list := make([]*Session, 0, len(m.sessions))
+func (m *mockSessionManager) ListActiveSessions() []*engine.Session {
+	list := make([]*engine.Session, 0, len(m.sessions))
 	for _, s := range m.sessions {
 		list = append(list, s)
 	}
@@ -338,7 +339,7 @@ func (m *mockSessionManager) ListActiveSessions() []*Session {
 }
 
 func (m *mockSessionManager) Shutdown() {
-	m.sessions = make(map[string]*Session)
+	m.sessions = make(map[string]*engine.Session)
 }
 
 type sessionNotFoundError struct{}
