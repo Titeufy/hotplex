@@ -7,22 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.9.0] - 2026-02-23
 
+### 🌟 High-Performance Multi-Language & Observability Milestone
+
+This version marks a significant evolution of HotPlex into a production-grade **AI Agent Control Plane**, shifting focus towards observability, multi-language support, and enterprise stability.
+
 ### Added
-- **TypeScript SDK MVP**: Launched the official TypeScript/JavaScript SDK in `sdks/typescript`, supporting both Node.js and Browser environments via WebSockets.
-- **Enterprise Observability**:
-  - Integrated **OpenTelemetry** for distributed tracing of agent sessions and tool calls.
-  - Added **Prometheus Metrics** endpoint (`/metrics`) for real-time monitoring of session activity, errors, and tool usage.
-  - Implemented standard **Health Check** endpoints (`/health`, `/health/ready`, `/health/live`) for Kubernetes and industrial monitoring.
-- **Reliability & Stability**:
-  - Added **Hot Configuration Reload**: The server now automatically reloads configuration files on changes without restart (using `fsnotify`).
-  - Added **Stress Testing Suite**: New automated stress tests in `engine/stress_test.go` to validate performance under 100+ concurrent sessions.
-- **Documentation**:
-  - Launched **VitePress Documentation Site** (in `docs/`) for a better developer reading experience.
-  - Added multiple language-specific SDK guides and quick-start documents.
+- **Official TypeScript SDK MVP**: Introduced a fully-typed JavaScript/TypeScript client in `sdks/typescript`. Supports both **Node.js** and **Browser** environments, enabling seamless integration of AI CLI agents into web dashboards and backend services.
+- **Enterprise-Grade Observability**:
+  - **OpenTelemetry Integration**: Implemented tracing for the entire execution lifecycle, from the gateway layer to individual tool invocations.
+  - **Prometheus Metrics**: Exported real-time performance data (active sessions, error rates, tool usage) via the `/metrics` endpoint.
+  - **Industrial Health Probes**: Added `/health`, `/health/ready`, and `/health/live` endpoints to support Kubernetes-native monitoring and liveness detection.
+- **Reliability & Performance**:
+  - **Hot Configuration Reload**: The server now watches for configuration changes using `fsnotify` and reloads without downtime.
+  - **Stress Testing Suite**: Validated single-instance stability under 100+ concurrent AI sessions via new automated tests in `engine/stress_test.go`.
+- **Documentation Overhaul**:
+  - Launched the **VitePress Documentation Site** in `docs-site/`, featuring a cleaner UI and cross-linked SDK guides.
+  - Added comprehensive guides for Docker execution and security best practices.
+
+### Changed
+- **Strategy Pivot**: Realigned all documentation to the **Cli-as-a-Service** model, moving away from simple CLI wrapping to providing a managed, stateful service layer.
+- **Package Refactoring**: Optimized internal package structures for better modularity and cleaner separation of concerns.
 
 ### Fixed
-- **Code Quality**: Project-wide Lint cleanup addressing `errcheck`, `staticcheck`, and `unused` field issues to ensure high-grade Go code standards.
-- **Dependency Management**: Tidied `go.mod` to properly mark `fsnotify` and other core packages as direct dependencies.
+- **Project-Wide Lint Cleanup**: Addressed multiple `errcheck`, `staticcheck`, and `unused` warnings to ensure the codebase meets high-performance Go standards.
+- **Dependency Graph**: Fixed `go.mod` to correctly classify `fsnotify` and other essential libraries as direct dependencies.
 
 ## [v0.8.3] - 2026-02-22
 
