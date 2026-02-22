@@ -113,11 +113,11 @@
   <path d="M 775 195 L 775 230 L 500 230" class="arrow" />
   <path d="M 500 195 L 500 295" class="arrow" marker-end="url(#arrowhead)"/>
 
-  <!-- Inside Engine to Sub-components -->
-  <path d="M 185 380 L 185 405" class="arrow" marker-end="url(#arrowhead)"/>
-  <path d="M 395 380 L 395 405" class="arrow" marker-end="url(#arrowhead)"/>
-  <path d="M 605 380 L 605 405" class="arrow" marker-end="url(#arrowhead)"/>
-  <path d="M 815 380 L 815 405" class="arrow" marker-end="url(#arrowhead)"/>
+  <!-- Inside Engine to Sub-components: No arrows for internal Go package composition -->
+  <path d="M 185 380 L 185 410" class="arrow" />
+  <path d="M 395 380 L 395 410" class="arrow" />
+  <path d="M 605 380 L 605 410" class="arrow" />
+  <path d="M 815 380 L 815 410" class="arrow" />
 
   <!-- Layer 2 to Layer 3 -->
   <path d="M 395 550 L 395 645" class="arrow" marker-end="url(#arrowhead)"/>
