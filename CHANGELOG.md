@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.8.2] - 2026-02-22
+
+### Fixed
+- **Provider (OpenCode)**: Resolved a critical issue where `OpenCodeProvider` failed to start sessions in CLI mode (Issue #17).
+  - Implemented **Cold Start argument injection** to pass the initial prompt via the `--command` flag.
+  - Added **Session ID normalization**, prefixing `ses_` to satisfy strict OpenCode CLI validation.
+  - Removed unsupported `--mode` and `--non-interactive` flags that caused CLI parsing errors.
+- **Engine**: Optimized cold start behavior to skip redundant `stdin` injection for providers that handle the initial prompt via command-line arguments.
+
 ## [v0.8.1] - 2026-02-22
 
 ### Fixed
