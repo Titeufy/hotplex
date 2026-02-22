@@ -238,7 +238,7 @@ func (r *Engine) executeWithMultiplex(
 	r.logger.Info("Engine: session pipeline ready for hot-multiplexing",
 		"namespace", r.opts.Namespace,
 		"session_id", cfg.SessionID,
-		"cc_session_id", sess.CCSessionID)
+		"provider_session_id", sess.ProviderSessionID)
 
 	// Update or reuse persistent instructions
 	if cfg.TaskInstructions != "" {

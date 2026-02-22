@@ -19,10 +19,10 @@ import (
 // It manages the underlying OS process group, handles streaming I/O via full-duplex pipes,
 // and tracks the operational readiness and lifecycle status of the agent sandbox.
 type Session struct {
-	ID               string        // Internal SDK identifier (provided by the user)
-	CCSessionID      string        // The deterministic UUID (v5) passed to CLI for persistent DB storage
-	Config           SessionConfig // Snapshot of the configuration used to initialize the session
-	TaskInstructions string        // Persistent instructions for the session
+	ID                string        // Internal SDK identifier (provided by the user)
+	ProviderSessionID string        // The deterministic UUID (v5) passed to CLI for persistent DB storage
+	Config            SessionConfig // Snapshot of the configuration used to initialize the session
+	TaskInstructions  string        // Persistent instructions for the session
 
 	// Process management
 	cmd    *exec.Cmd
@@ -292,9 +292,9 @@ func (s *Session) ReadStderr() {
 // This should only be used in test code.
 func NewTestSession(id string, status SessionStatus) *Session {
 	return &Session{
-		ID:           id,
-		CCSessionID:  "test-cc-session",
-		Status:       status,
-		statusChange: make(chan SessionStatus, 10),
+		ID:                id,
+		ProviderSessionID: "test-provider-session",
+		Status:            status,
+		statusChange:      make(chan SessionStatus, 10),
 	}
 }

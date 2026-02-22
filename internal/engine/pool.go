@@ -168,7 +168,7 @@ func (sm *SessionPool) cleanupSessionLocked(sessionID string) error {
 	sm.logger.Info("Terminating session and sweeping OS process group",
 		"namespace", sm.opts.Namespace,
 		"session_id", sessionID,
-		"cc_session_id", sess.CCSessionID)
+		"provider_session_id", sess.ProviderSessionID)
 
 	// Hold session lock to prevent race with WriteInput
 	sess.mu.Lock()
@@ -209,14 +209,14 @@ func (sm *SessionPool) startSession(ctx context.Context, sessionID string, cfg S
 	go monitorStartup(startupCtx, startedCh, cancel)
 
 	uniqueStr := fmt.Sprintf("%s:session:%s", sm.opts.Namespace, sessionID)
-	ccSessionID := uuid.NewSHA1(uuid.NameSpaceURL, []byte(uniqueStr)).String()
+	providerSessionID := uuid.NewSHA1(uuid.NameSpaceURL, []byte(uniqueStr)).String()
 	sessLog := sm.logger.With(
 		"namespace", sm.opts.Namespace,
 		"session_id", sessionID,
-		"cc_session_id", ccSessionID,
+		"provider_session_id", providerSessionID,
 	)
 
-	args := sm.buildCLIArgs(ccSessionID, sessLog)
+	args := sm.buildCLIArgs(providerSessionID, sessLog)
 	cmd := exec.CommandContext(sessCtx, sm.cliPath, args...)
 	cmd.Dir = cfg.WorkDir
 	cmd.Env = append(os.Environ(), "CLAUDE_DISABLE_TELEMETRY=1")
@@ -240,20 +240,20 @@ func (sm *SessionPool) startSession(ctx context.Context, sessionID string, cfg S
 		"pgid", cmd.Process.Pid)
 
 	sess := &Session{
-		ID:               sessionID,
-		CCSessionID:      ccSessionID,
-		Config:           cfg,
-		cmd:              cmd,
-		stdin:            stdin,
-		stdout:           stdout,
-		stderr:           stderr,
-		cancel:           cancel,
-		CreatedAt:        time.Now(),
-		LastActive:       time.Now(),
-		Status:           SessionStatusStarting,
-		TaskInstructions: cfg.TaskInstructions,
-		statusChange:     make(chan SessionStatus, 10),
-		logger:           sessLog,
+		ID:                sessionID,
+		ProviderSessionID: providerSessionID,
+		Config:            cfg,
+		cmd:               cmd,
+		stdin:             stdin,
+		stdout:            stdout,
+		stderr:            stderr,
+		cancel:            cancel,
+		CreatedAt:         time.Now(),
+		LastActive:        time.Now(),
+		Status:            SessionStatusStarting,
+		TaskInstructions:  cfg.TaskInstructions,
+		statusChange:      make(chan SessionStatus, 10),
+		logger:            sessLog,
 	}
 
 	go sess.ReadStdout()
@@ -276,29 +276,29 @@ func (sm *SessionPool) startSession(ctx context.Context, sessionID string, cfg S
 	return sess, nil
 }
 
-func (sm *SessionPool) buildCLIArgs(ccSessionID string, sessLog *slog.Logger) []string {
+func (sm *SessionPool) buildCLIArgs(providerSessionID string, sessLog *slog.Logger) []string {
 	// Build ProviderSessionOptions
 	opts := &provider.ProviderSessionOptions{
 		PermissionMode:   sm.opts.PermissionMode,
 		AllowedTools:     sm.opts.AllowedTools,
 		DisallowedTools:  sm.opts.DisallowedTools,
 		BaseSystemPrompt: sm.opts.BaseSystemPrompt,
-		SessionID:        ccSessionID,
+		SessionID:        providerSessionID,
 	}
 
 	// Check if we need to resume
-	markerPath := filepath.Join(sm.markerDir, ccSessionID+".lock")
+	markerPath := filepath.Join(sm.markerDir, providerSessionID+".lock")
 	if _, err := os.Stat(markerPath); err == nil {
 		opts.ResumeSession = true
-		opts.ProviderSessionID = ccSessionID
+		opts.ProviderSessionID = providerSessionID
 		sessLog.Info("Resuming existing persistent CLI session")
 	} else {
-		opts.ProviderSessionID = ccSessionID
+		opts.ProviderSessionID = providerSessionID
 		_ = os.WriteFile(markerPath, []byte(""), 0644)
 		sessLog.Info("Creating new persistent CLI session")
 	}
 
-	return sm.provider.BuildCLIArgs(ccSessionID, opts)
+	return sm.provider.BuildCLIArgs(providerSessionID, opts)
 }
 
 func setupCmdPipes(cmd *exec.Cmd) (io.WriteCloser, io.ReadCloser, io.ReadCloser, error) {
@@ -368,7 +368,7 @@ func (sm *SessionPool) cleanupIdleSessions() {
 			sm.logger.Info("Session idle timeout, terminating",
 				"namespace", sm.opts.Namespace,
 				"session_id", sessionID,
-				"cc_session_id", sess.CCSessionID,
+				"provider_session_id", sess.ProviderSessionID,
 				"idle_duration", idleTime,
 				"timeout", sm.timeout)
 			_ = sm.cleanupSessionLocked(sessionID)

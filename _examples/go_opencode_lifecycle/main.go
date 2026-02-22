@@ -52,7 +52,6 @@ func main() {
 
 	ctx := context.Background()
 	sessionID := "persistent-opencode-task"
-	var lastProviderSessionID string
 
 	// --- PHASE 1: Initial Cold Start ---
 	fmt.Println("\n[Phase 1] Initial Cold Start...")
