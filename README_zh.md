@@ -33,9 +33,9 @@
 ### 为什么选择 hotplex？
 - 🧩 **复用即生产**：直接集成 Claude Code 等尖端工具，跳过繁琐的 Agent 逻辑开发。
 - 🚀 **200ms 极速响应**：彻底消除 Node.js/Python 运行时启动延迟，提供丝滑的交互体验。
-- ♻️ **有状态会话池**：自动管理底层进程生命周期，支持跨请求的 VFS 状态与上下文持久化。
+- ♻️ **有状态会话池**：自动管理底层进程生命周期，支持跨请求的 VFS state 与上下文持久化。
 - 🔒 **安全管控中心**：内置指令级 WAF 防火墙与进程组隔离，为 AI 代理的操作提供硬核安全围栏。
-- 🔌 **生产级适配**：支持 **Go SDK** 原生嵌入或 **WebSocket 网关** 部署，完美适配现代微服务架构。
+- 🔌 **生产级适配**：支持 **Go SDK** 原生嵌入或 **HotPlex 代理服务器** 部署，同时支持 WebSocket 与 **OpenCode (HTTP/SSE)** 协议。
 
 ---
 
@@ -48,7 +48,7 @@ hotplex 实现了 **接入层（Access Layer）** 与 **引擎执行层（Engine
   <img src="docs/images/topology.svg" alt="hotplex System Architecture" width="90%">
 </div>
 
-- **接入层 (Access Layer)**：支持原生的 Go SDK 本地调用，或者远程的 WebSocket 连接请求 (`hotplexd`)。
+- **接入层 (Access Layer)**：支持原生的 Go SDK 本地调用，或者远程的 API 接口请求 (`hotplexd`)。包含专用的 **OpenCode HTTP/SSE 兼容性处理器**。
 - **引擎层 (Engine Layer)**：以单例模式管理资源管理器、会话池分配、配置属性覆盖以及核心安全 WAF。
 - **进程层 (OS Process Layer)**：实际工作的子进程，位于 PGID 级别的隔离工作区内，并被严格锁定在指定的目录边界中工作。
 
@@ -114,17 +114,18 @@ func main() {
 }
 ```
 
-### 方案 B：独立运行 WebSocket 守护进程网关
-将 `hotplexd` 作为一个独立的基础设施守护进程部署，为跨语言生态（如 React, Node.js, Python, Rust 等客户端）提供底层支撑。
+### 方案 B：独立运行 HotPlex 代理服务器网关
+将 `hotplexd` 作为一个独立的基础设施守护进程部署，为跨语言生态（如 React, Node.js, Python, Rust 等客户端）提供 WebSocket 或 OpenCode HTTP/SSE 支持。
 
 **编译并运行：**
 ```bash
 make build
-./bin/hotplexd --port 8080 --allowed-tools "Bash,Edit"
+PORT=8080 ./dist/hotplexd
 ```
 
 **连接与控制：**
-通过你的 WebSocket 客户端连接至 `ws://localhost:8080/ws/v1/agent`。可直接查看项目根目录的 `_examples/node_claude_websocket/` 以了解完整的 Web 客户端交互实现。
+- **WebSocket**: 连接至 `ws://localhost:8080/ws/v1/agent`。
+- **OpenCode (HTTP/SSE)**: 在您的 OpenCode 客户端中配置 `baseURL: "http://localhost:8080"`。
 
 ---
 

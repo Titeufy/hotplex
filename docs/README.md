@@ -2,11 +2,6 @@
 
 Welcome to the HotPlex documentation. This directory contains comprehensive guides for developers, architects, and users of the HotPlex control plane.
 
-## 🌐 Language Options
-- [中文文档 (Chinese)](api_zh.md)
-
----
-
 ## 🏗️ Core Concepts
 - **[Architecture Overview](architecture.md)**: High-level system design, security model (PGID isolation), and performance principles.
 - **[SDK Guide](sdk-guide.md)**: How to integrate HotPlex into your Go applications.

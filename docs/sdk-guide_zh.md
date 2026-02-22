@@ -1,14 +1,14 @@
-# HotPlex SDK 开发者手册 (Go)
+# hotplex SDK 开发者手册 (Go)
 
 *查看其他语言: [English](sdk-guide.md), [简体中文](sdk-guide_zh.md).*
 
-欢迎使用 HotPlex SDK！本手册旨在指导开发者如何将 HotPlex 强大的 AI 智能体运行时 (Agent Runtime) 集成到自己的 Go 应用程序中。
+欢迎使用 hotplex SDK！本手册旨在指导开发者如何将 hotplex 强大的 AI 智能体运行时 (Agent Runtime) 集成到自己的 Go 应用程序中。
 
 ---
 
 ## 1. 核心理念
 
-HotPlex 的核心哲学是 **"利用胜于构建 (Leverage vs Build)"**。我们不重新发明 AI 智能体，而是通过 SDK 将顶级的终端 AI 工具（如 Claude Code, OpenCode）转化为生产就绪的后端服务：
+hotplex 的核心哲学是 **"利用胜于构建 (Leverage vs Build)"**。我们不重新发明 AI 智能体，而是通过 SDK 将顶级的终端 AI 工具（如 Claude Code, OpenCode）转化为生产就绪的后端服务：
 - **热复用 (Hot-Multiplexing)**：消除进程冷启动延迟，实现毫秒级响应。
 - **安全隔离**：提供进程组 (PGID) 隔离和指令级 WAF 审计。
 - **协议标准化**：将多样化的 CLI 输出归一化为统一的流式事件。

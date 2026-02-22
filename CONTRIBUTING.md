@@ -1,8 +1,10 @@
-# Contributing to HotPlex
+# Contributing to hotplex
 
-First off, thank you for considering contributing to HotPlex! It's people like you that make HotPlex such a great tool.
+First off, thank you for considering contributing to hotplex! It's people like you that make hotplex such a great tool.
 
 Our **First Principle** is to leverage and bridge existing elite AI CLI tools (like Claude Code) into the production ecosystem. Contributions should align with this vision of building a "Control Plane" rather than reinventing the agent's core reasoning or tool logic.
+
+**CRITICAL**: Contributors must read and adhere to [AGENT.md](AGENT.md) for architectural boundaries, concurrency safety, and process lifecycle rules.
 
 ## 🚀 How Can I Contribute?
 
@@ -26,9 +28,18 @@ Our **First Principle** is to leverage and bridge existing elite AI CLI tools (l
 ## 🛠 Development Setup
 
 1. Install Go 1.24 or later.
-2. Install Claude Code CLI: `curl -fsSL https://claude.ai/install.sh | bash`.
+2. Install Required AI CLI tools (e.g., `Claude Code` or `OpenCode`).
 3. Clone your fork: `git clone https://github.com/YOUR_USERNAME/HotPlex.git`.
-4. Run tests: `go test ./...`.
+
+### Useful Commands
+We use a `Makefile` to standardize development workflows:
+- `make build`: Compiles the `hotplexd` binary to `dist/`.
+- `make test`: Runs unit tests.
+- `make lint`: Runs `golangci-lint` to ensure code quality.
+- `make run`: Builds and starts the daemon locally.
+
+### Documentation Policy
+We follow a **"Docs-First"** mentality for releases. Any PR modifying public APIs or core behavior *must* update the relevant documentation in `docs/` and the README files.
 
 ## 📜 Code of Conduct
 Please note that this project is released with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.

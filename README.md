@@ -35,7 +35,7 @@ Developers no longer need to build complex agent runtimes from scratch or reinve
 - 🚀 **200ms Instant Response**: Eliminate Node.js/Python spin-up latencies for a fluid, real-time experience.
 - ♻️ **Stateful Session Pool**: Managed lifecycle with persistent VFS state and context across requests.
 - 🔒 **Security Control Center**: Built-in Command WAF and PGID isolation to provide a hard sandbox for AI operations.
-- 🔌 **Production Ready**: Embed via **Go SDK** or deploy as a **WebSocket Gateway** for modern microservice architectures.
+- 🔌 **Production Ready**: Embed via **Go SDK** or deploy as a **HotPlex Proxy Server** supporting both WebSocket and **OpenCode (HTTP/SSE)** protocols.
 
 ---
 
@@ -48,7 +48,7 @@ hotplex decouples the **access layer** from the **execution engine layer**, leve
   <img src="docs/images/topology.svg" alt="hotplex System Architecture" width="90%">
 </div>
 
-- **Access Layer**: Supports native Go SDK calls or remote WebSocket connections (`hotplexd`).
+- **Access Layer**: Supports native Go SDK calls or remote API connections (`hotplexd`). Includes a dedicated **OpenCode HTTP/SSE compatibility handler**.
 - **Engine Layer**: Singleton resource manager managing the session pool, configuration overrides, and security WAF.
 - **Process Layer**: Sub-process worker isolated in PGID-level workspaces, locked to specific directory boundaries.
 
@@ -114,17 +114,18 @@ func main() {
 }
 ```
 
-### Option B: Standalone WebSocket Gateway
-Operate `hotplexd` as an infrastructure daemon to serve cross-language clients (React, Node, Python, Rust).
+### Option B: Standalone HotPlex Proxy Server
+Operate `hotplexd` as an infrastructure daemon to serve cross-language clients (React, Node, Python, Rust) via WebSocket or OpenCode HTTP/SSE.
 
 **Build & Run:**
 ```bash
 make build
-./bin/hotplexd --port 8080 --allowed-tools "Bash,Edit"
+PORT=8080 ./dist/hotplexd
 ```
 
 **Connect & Control:**
-Connect your websocket client to `ws://localhost:8080/ws/v1/agent`. Check out `_examples/node_claude_websocket/` for a fully functional web demo implementation.
+- **WebSocket**: Connect to `ws://localhost:8080/ws/v1/agent`.
+- **OpenCode (HTTP/SSE)**: Configure your OpenCode client with `baseURL: "http://localhost:8080"`.
 
 ---
 

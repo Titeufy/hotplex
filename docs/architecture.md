@@ -1,14 +1,14 @@
-# HotPlex Core Architecture Documentation
+# hotplex Core Architecture Documentation
 
 *Read this in other languages: [English](architecture.md), [简体中文](architecture_zh.md).*
 
-HotPlex is a high-performance **Agent Runtime** for AI CLI Agents, designed to transform elite terminal-based AI tools (like Claude Code, Aider, or OpenCode) into production-ready system services. Its core philosophy is "Leverage vs Build"—by maintaining a persistent process pool with hardened security boundaries and a normalized protocol layer, HotPlex enables millisecond-level responsiveness and full-duplex streaming integration.
+hotplex is a high-performance **Agent Runtime** for AI CLI Agents, designed to transform elite terminal-based AI tools (like Claude Code, Aider, or OpenCode) into production-ready system services. Its core philosophy is "Leverage vs Build"—by maintaining a persistent process pool with hardened security boundaries and a normalized protocol layer, hotplex enables millisecond-level responsiveness and full-duplex streaming integration.
 
 ---
 
 ## 1. Physical Layout & Clean Architecture
 
-HotPlex follows a layered architecture with strict visibility rules, separating the public SDK from internal execution details and protocol adapters.
+hotplex follows a layered architecture with strict visibility rules, separating the public SDK from internal execution details and protocol adapters.
 
 ### 1.1 Directory Structure (Actual)
 - **Root (`/`)**: Main entry point for the SDK. Contains `hotplex.go` (public aliases) and `client.go`.
@@ -19,7 +19,7 @@ HotPlex follows a layered architecture with strict visibility rules, separating 
 - **`internal/engine/`**: The core execution engine. Manages the `SessionPool` (process multiplexing) and `Session` (I/O piping and state management).
 - **`internal/security/`**: The Regex-based WAF (`Detector`) for command auditing.
 - **`internal/sys/`**: Low-level OS primitives for cross-platform process group management (PGID) and signal handling.
-- **`internal/server/`**: The WebSocket gateway adapter.
+- **`internal/server/`**: Protocol adapters. Contains `hotplex_ws.go` (WebSocket) and `opencode_http.go` (REST/SSE).
 - **`internal/strutil/`**: String manipulation utilities.
 
 ### 1.2 Design Principles
@@ -55,13 +55,15 @@ Standardizes diverse CLI protocols into a unified "HotPlex Event Stream":
 
 ```mermaid
 sequenceDiagram
-    participant Client as "Client / SDK"
+    participant Client as "Client (WebSocket/HTTP)"
+    participant Server as "internal/server"
     participant Engine as "engine.Engine"
-    participant Pool as "engine.SessionPool"
+    participant Pool as "internal/engine.SessionPool"
     participant Provider as "provider.Provider"
     participant Proc as "CLI Process (OS)"
     
-    Client->>Engine: Execute(Config, Prompt)
+    Client->>Server: Request (WebSocket Message / POST)
+    Server->>Engine: Execute(Config, Prompt)
     Engine->>Engine: Check WAF (Detector)
     Engine->>Pool: GetOrCreateSession(ID)
     
@@ -76,7 +78,8 @@ sequenceDiagram
     loop Stream Event Normalization
         Proc-->>Provider: Raw tool specific output
         Provider-->>Engine: Normalized ProviderEvent
-        Engine-->>Client: Public EventWithMeta
+        Engine-->>Server: Public EventWithMeta
+        Server-->>Client: WebSocket/SSE Event
     end
     
     Engine->>Pool: Touch(ID) to refresh idle timer
@@ -92,6 +95,7 @@ sequenceDiagram
 - [x] Resilient Session Hot-Multiplexing
 - [x] Multi-platform PGID management (Windows Job Objects / Unix PGID)
 - [x] Regex-based Security WAF
+- [x] **Dual Protocol Gateway**: Native WebSocket and OpenCode-compatible REST/SSE API
 
 ### Planned Enhancements
 - **L2/L3 Isolation**: Integrating Linux Namespaces (PID/Net) and WASM sandboxing

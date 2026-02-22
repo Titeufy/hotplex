@@ -1,14 +1,14 @@
-# HotPlex SDK Developer Guide (Go)
+# hotplex SDK Developer Guide (Go)
 
 *Read this in other languages: [English](sdk-guide.md), [简体中文](sdk-guide_zh.md).*
 
-Welcome to the HotPlex SDK! This guide is designed to help developers integrate the powerful HotPlex AI Agent Runtime into their Go applications.
+Welcome to the hotplex SDK! This guide is designed to help developers integrate the powerful hotplex AI Agent Runtime into their Go applications.
 
 ---
 
 ## 1. Core Philosophy
 
-HotPlex follows the **"Leverage vs Build"** philosophy. Instead of reinventing AI agents, our SDK transforms elite terminal-based AI tools (like Claude Code, OpenCode) into production-ready backend services:
+hotplex follows the **"Leverage vs Build"** philosophy. Instead of reinventing AI agents, our SDK transforms elite terminal-based AI tools (like Claude Code, OpenCode) into production-ready backend services:
 - **Hot-Multiplexing**: Eliminates cold-start latency, achieving millisecond response times.
 - **Security Hardening**: Provides Process Group (PGID) isolation and instruction-level WAF auditing.
 - **Protocol Normalization**: Standardizes diverse CLI outputs into unified streaming events.
