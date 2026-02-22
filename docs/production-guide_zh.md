@@ -1,21 +1,21 @@
 *Read this in other languages: [English](production-guide.md), [简体中文](production-guide_zh.md).*
 
-# Production Deployment Guide
+# 生产环境部署指南
 
-## Architecture
+## 架构
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Load Balancer                           │
-│                  (nginx / cloud LB)                         │
+│                     负载均衡器 (LB)                          │
+│                  (nginx / 云厂商 LB)                         │
 └─────────────────────────────────────────────────────────────┘
                             │
          ┌──────────────────┼──────────────────┐
          ▼                  ▼                  ▼
    ┌──────────┐       ┌──────────┐       ┌──────────┐
    │ HotPlex  │       │ HotPlex  │       │ HotPlex  │
-   │  Node 1  │       │  Node 2  │       │  Node 3  │
-   └──────────┘       └──────────┘       └──────────┘
+   │  节点 1  │       │  节点 2  │       │  节点 3  │
+   └──────────┐       └──────────┘       └──────────┘
          │                  │                  │
          └──────────────────┴──────────────────┘
                             │
@@ -23,22 +23,22 @@
          ▼                  ▼                  ▼
    ┌──────────┐       ┌──────────┐       ┌──────────┐
    │ Prometheus│       │  Jaeger  │       │  Loki    │
-   │ (metrics)│       │ (traces) │       │  (logs)  │
-   └──────────┘       └──────────┘       └──────────┘
+   │  (指标)   │       │  (追踪)  │       │  (日志)  │
+   └──────────┐       └──────────┘       └──────────┘
 ```
 
-## Scaling Guidelines
+## 扩容建议
 
-| Concurrent Users | Instances | CPU/Instance | Memory/Instance |
-| ---------------- | --------- | ------------ | --------------- |
-| 1-100            | 1         | 0.5 core     | 512MB           |
-| 100-500          | 2-3       | 1 core       | 1GB             |
-| 500-2000         | 5-10      | 2 core       | 2GB             |
-| 2000+            | 10+       | 2-4 core     | 2-4GB           |
+| 并发用户数 | 实例数量 | 单实例 CPU | 单实例内存 |
+| ---------- | -------- | ---------- | ---------- |
+| 1-100      | 1        | 0.5 核     | 512MB      |
+| 100-500    | 2-3      | 1 核       | 1GB        |
+| 500-2000   | 5-10     | 2 核       | 2GB        |
+| 2000+      | 10+      | 2-4 核     | 2-4GB      |
 
-## Monitoring Stack
+## 监控栈
 
-### Prometheus
+### Prometheus 配置
 
 ```yaml
 scrape_configs:
@@ -48,15 +48,15 @@ scrape_configs:
     metrics_path: /metrics
 ```
 
-### Grafana Dashboard
+### Grafana 仪表盘
 
-Key panels:
-- Active Sessions
-- Request Latency (p50, p95, p99)
-- Error Rate
-- Tool Invocation Rate
+关键面板：
+- 活动会话数 (Active Sessions)
+- 请求延迟 (p50, p95, p99)
+- 错误率
+- 工具调用频率
 
-### Alerting Rules
+### 告警规则
 
 ```yaml
 groups:
@@ -68,8 +68,8 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: High error rate detected
-
+      summary: 检测到高错误率
+  
   - alert: SessionPoolExhausted
     expr: hotplex_sessions_active > 800
     for: 2m
@@ -77,40 +77,40 @@ groups:
       severity: critical
 ```
 
-## Security Checklist
+## 安全检查清单
 
-- [ ] Enable TLS termination at LB
-- [ ] Set up network policies
-- [ ] Configure rate limiting
-- [ ] Enable authentication
-- [ ] Set resource limits
-- [ ] Enable audit logging
+- [ ] 在负载均衡器启用 TLS 终止
+- [ ] 配置网络策略 (Network Policies)
+- [ ] 配置频率限制 (Rate Limiting)
+- [ ] 启用身份认证 (Authentication)
+- [ ] 配置资源限额 (Resource Limits)
+- [ ] 启用审计日志 (Audit Logging)
 
-## Backup & Recovery
+## 备份与恢复
 
-### Session State
+### 会话状态
 
-Sessions are ephemeral. No persistent state to backup.
+会话是短暂的 (Ephemeral)，无需备份持久化状态。
 
-### Configuration
+### 配置信息
 
 ```bash
 kubectl get configmap hotplex-config -o yaml > hotplex-config-backup.yaml
 ```
 
-## Troubleshooting
+## 故障分析排查
 
-### High Memory Usage
+### 内存占用过高
 
 ```bash
 kubectl exec -it hotplex-xxx -- curl localhost:8080/debug/pprof/heap
 ```
 
-### Slow Requests
+### 请求响应变慢
 
-Check traces in Jaeger for bottleneck spans.
+在 Jaeger 中检查追踪，找出瓶颈所在的 Spans。
 
-### Session Leaks
+### 会话泄漏
 
 ```bash
 curl http://hotplex:8080/metrics | grep hotplex_sessions_active

@@ -1,3 +1,5 @@
+*Read this in other languages: [English](hooks-architecture.md), [简体中文](hooks-architecture_zh.md).*
+
 # Event Hooks Architecture
 
 ## Overview
@@ -49,18 +51,18 @@ The Event Hooks system provides a plugin-based architecture for reacting to even
 
 ## Event Types
 
-| Event | Description | When Fired |
-|-------|-------------|------------|
-| `session.start` | Session created | New CLI process started |
-| `session.end` | Session terminated | Process cleanup |
-| `session.error` | Session error | Unrecoverable error |
-| `tool.use` | Tool invoked | Agent uses Bash, Edit, etc. |
-| `tool.result` | Tool completed | Tool execution finished |
-| `danger.blocked` | Security block | WAF blocked dangerous command |
-| `stream.start` | Stream begun | First token received |
-| `stream.end` | Stream finished | Turn completed |
-| `turn.start` | Turn begun | User prompt received |
-| `turn.end` | Turn completed | AI response finished |
+| Event            | Description        | When Fired                    |
+| ---------------- | ------------------ | ----------------------------- |
+| `session.start`  | Session created    | New CLI process started       |
+| `session.end`    | Session terminated | Process cleanup               |
+| `session.error`  | Session error      | Unrecoverable error           |
+| `tool.use`       | Tool invoked       | Agent uses Bash, Edit, etc.   |
+| `tool.result`    | Tool completed     | Tool execution finished       |
+| `danger.blocked` | Security block     | WAF blocked dangerous command |
+| `stream.start`   | Stream begun       | First token received          |
+| `stream.end`     | Stream finished    | Turn completed                |
+| `turn.start`     | Turn begun         | User prompt received          |
+| `turn.end`       | Turn completed     | AI response finished          |
 
 ## Hook Interface
 
@@ -137,19 +139,19 @@ func (h *MetricsHook) Handle(ctx context.Context, event *hooks.Event) error {
 
 ### HookConfig
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `Enabled` | bool | true | Whether hook is active |
-| `Async` | bool | false | Run in goroutine |
-| `Timeout` | Duration | 5s | Per-hook timeout |
-| `Retry` | int | 0 | Retry attempts on failure |
+| Field     | Type     | Default | Description               |
+| --------- | -------- | ------- | ------------------------- |
+| `Enabled` | bool     | true    | Whether hook is active    |
+| `Async`   | bool     | false   | Run in goroutine          |
+| `Timeout` | Duration | 5s      | Per-hook timeout          |
+| `Retry`   | int      | 0       | Retry attempts on failure |
 
 ### Manager Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `bufferSize` | 1000 | Event channel buffer size |
-| `logger` | slog.Default() | Logger for hook events |
+| Option       | Default        | Description               |
+| ------------ | -------------- | ------------------------- |
+| `bufferSize` | 1000           | Event channel buffer size |
+| `logger`     | slog.Default() | Logger for hook events    |
 
 ## Thread Safety
 

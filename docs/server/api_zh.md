@@ -1,3 +1,5 @@
+*查看其他语言: [English](api.md), [简体中文](api_zh.md).*
+
 # HotPlex 服务模式开发者手册
 
 HotPlex 支持双协议服务模式，使其能够作为 AI CLI 智能体（Agent）的生产级控制平面。它原生支持标准智能体协议，并为 OpenCode 生态提供兼容层。

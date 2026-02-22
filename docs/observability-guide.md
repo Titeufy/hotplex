@@ -1,3 +1,5 @@
+*Read this in other languages: [English](observability-guide.md), [简体中文](observability-guide_zh.md).*
+
 # Observability Guide
 
 ## Overview
@@ -16,21 +18,21 @@ export OTEL_SAMPLING_RATE="1.0"
 
 ### Spans
 
-| Span Name | Description |
-|-----------|-------------|
-| `session.execute` | Full session execution |
-| `tool.use` | Tool invocation |
-| `security.danger_block` | WAF block event |
+| Span Name               | Description            |
+| ----------------------- | ---------------------- |
+| `session.execute`       | Full session execution |
+| `tool.use`              | Tool invocation        |
+| `security.danger_block` | WAF block event        |
 
 ### Attributes
 
-| Attribute | Description |
-|-----------|-------------|
-| `session.id` | Session identifier |
-| `namespace` | Namespace |
-| `tool.name` | Tool name |
-| `tool.id` | Tool invocation ID |
-| `danger.operation` | Blocked operation |
+| Attribute          | Description        |
+| ------------------ | ------------------ |
+| `session.id`       | Session identifier |
+| `namespace`        | Namespace          |
+| `tool.name`        | Tool name          |
+| `tool.id`          | Tool invocation ID |
+| `danger.operation` | Blocked operation  |
 
 ## Prometheus Metrics
 
@@ -42,14 +44,14 @@ GET /metrics
 
 ### Metrics
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `hotplex_sessions_active` | gauge | Active sessions |
-| `hotplex_sessions_total` | counter | Total sessions created |
-| `hotplex_sessions_errors` | counter | Session errors |
-| `hotplex_tools_invoked` | counter | Tool invocations |
-| `hotplex_dangers_blocked` | counter | WAF blocks |
-| `hotplex_request_duration_seconds` | histogram | Request latency |
+| Metric                             | Type      | Description            |
+| ---------------------------------- | --------- | ---------------------- |
+| `hotplex_sessions_active`          | gauge     | Active sessions        |
+| `hotplex_sessions_total`           | counter   | Total sessions created |
+| `hotplex_sessions_errors`          | counter   | Session errors         |
+| `hotplex_tools_invoked`            | counter   | Tool invocations       |
+| `hotplex_dangers_blocked`          | counter   | WAF blocks             |
+| `hotplex_request_duration_seconds` | histogram | Request latency        |
 
 ### Grafana Dashboard
 
@@ -87,9 +89,9 @@ GET /health/live  # Liveness probe
 
 ### Log Levels
 
-| Level | Use Case |
-|-------|----------|
+| Level | Use Case           |
+| ----- | ------------------ |
 | debug | Detailed debugging |
-| info | Normal operations |
-| warn | Recoverable errors |
-| error | Failures |
+| info  | Normal operations  |
+| warn  | Recoverable errors |
+| error | Failures           |

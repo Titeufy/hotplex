@@ -1,3 +1,5 @@
+*Read this in other languages: [English](SECURITY.md), [简体中文](SECURITY_zh.md).*
+
 # Security Policy
 
 ## Supported Versions

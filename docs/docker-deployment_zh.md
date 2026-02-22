@@ -1,16 +1,16 @@
 *Read this in other languages: [English](docker-deployment.md), [简体中文](docker-deployment_zh.md).*
 
-# Docker Deployment Guide
+# Docker 部署指南
 
-## Quick Start
+## 快速入门
 
-### 1. Build the Image
+### 1. 构建镜像
 
 ```bash
 docker build -t hotplex:latest .
 ```
 
-### 2. Run the Container
+### 2. 运行容器
 
 ```bash
 docker run -d \
@@ -21,7 +21,7 @@ docker run -d \
   hotplex:latest
 ```
 
-## Docker Compose
+## Docker Compose 配置
 
 ```yaml
 version: '3.8'
@@ -48,7 +48,7 @@ volumes:
   hotplex-data:
 ```
 
-## Kubernetes Deployment
+## Kubernetes 部署
 
 ```yaml
 apiVersion: apps/v1
@@ -102,12 +102,12 @@ spec:
     targetPort: 8080
 ```
 
-## Configuration
+## 配置参数
 
-| Variable      | Default | Description             |
-| ------------- | ------- | ----------------------- |
-| PORT          | 8080    | Server port             |
-| LOG_LEVEL     | info    | Log level               |
-| IDLE_TIMEOUT  | 30m     | Session idle timeout    |
-| OTEL_ENDPOINT | -       | OpenTelemetry endpoint  |
-| MAX_SESSIONS  | 1000    | Max concurrent sessions |
+| 变量          | 默认值 | 描述                   |
+| ------------- | ------ | ---------------------- |
+| PORT          | 8080   | 服务端口               |
+| LOG_LEVEL     | info   | 日志级别               |
+| IDLE_TIMEOUT  | 30m    | 会话空闲超时时间       |
+| OTEL_ENDPOINT | -      | OpenTelemetry 接口地址 |
+| MAX_SESSIONS  | 1000   | 最大并发会话数         |

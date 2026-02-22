@@ -1,3 +1,5 @@
+*Read this in other languages: [English](benchmark-report.md), [简体中文](benchmark-report_zh.md).*
+
 # HotPlex Performance Benchmark Report
 
 > Generated: 2026-03-01
@@ -14,24 +16,24 @@ HotPlex delivers **sub-200ms response times** for hot-multiplexed sessions, maki
 
 ### 1.1 Benchmark Configuration
 
-| Parameter | Value |
-|-----------|-------|
-| Go Version | 1.24 |
-| Platform | darwin/arm64 |
-| Mock CLI | Shell script simulating Claude Code protocol |
-| Test Duration | Per-benchmark adaptive |
-| Parallelism | GOMAXPROCS=default |
+| Parameter     | Value                                        |
+| ------------- | -------------------------------------------- |
+| Go Version    | 1.24                                         |
+| Platform      | darwin/arm64                                 |
+| Mock CLI      | Shell script simulating Claude Code protocol |
+| Test Duration | Per-benchmark adaptive                       |
+| Parallelism   | GOMAXPROCS=default                           |
 
 ### 1.2 Metrics Measured
 
-| Metric | Description |
-|--------|-------------|
-| **Cold Start Latency** | Time to create a new session (first request) |
-| **Hot Multiplex Latency** | Time for subsequent requests to existing session |
-| **Session Pool Throughput** | Concurrent sessions handled per second |
-| **WAF Performance** | Security check overhead per request |
-| **Memory Per Session** | Heap allocation per session creation |
-| **Concurrent Creation** | Parallel cold start performance |
+| Metric                      | Description                                      |
+| --------------------------- | ------------------------------------------------ |
+| **Cold Start Latency**      | Time to create a new session (first request)     |
+| **Hot Multiplex Latency**   | Time for subsequent requests to existing session |
+| **Session Pool Throughput** | Concurrent sessions handled per second           |
+| **WAF Performance**         | Security check overhead per request              |
+| **Memory Per Session**      | Heap allocation per session creation             |
+| **Concurrent Creation**     | Parallel cold start performance                  |
 
 ---
 
@@ -45,11 +47,11 @@ HotPlex delivers **sub-200ms response times** for hot-multiplexed sessions, maki
 BenchmarkColdStartLatency-8   	   100	  1523421 ns/op
 ```
 
-| Metric | Value |
-|--------|-------|
+| Metric          | Value       |
+| --------------- | ----------- |
 | Average Latency | **1.52 ms** |
-| 99th Percentile | ~3 ms |
-| Allocations | ~2.1 KB/op |
+| 99th Percentile | ~3 ms       |
+| Allocations     | ~2.1 KB/op  |
 
 **Analysis**: Cold starts complete in under 2ms with mock CLI. Real-world latency with actual Claude Code CLI is dominated by Node.js startup (~1-2 seconds), but HotPlex's overhead is negligible (~2ms).
 
@@ -63,11 +65,11 @@ BenchmarkColdStartLatency-8   	   100	  1523421 ns/op
 BenchmarkHotMultiplexLatency-8   	  500000	    2847 ns/op
 ```
 
-| Metric | Value |
-|--------|-------|
-| Average Latency | **2.85 μs** |
-| Throughput | ~350,000 req/sec |
-| Allocations | ~0.5 KB/op |
+| Metric          | Value            |
+| --------------- | ---------------- |
+| Average Latency | **2.85 μs**      |
+| Throughput      | ~350,000 req/sec |
+| Allocations     | ~0.5 KB/op       |
 
 **Analysis**: Hot-multiplexed requests complete in microseconds, not milliseconds. This is the key performance advantage of HotPlex—eliminating repeated process spawn overhead.
 
@@ -81,11 +83,11 @@ BenchmarkHotMultiplexLatency-8   	  500000	    2847 ns/op
 BenchmarkSessionPoolThroughput-8   	   50000	     23456 ns/op
 ```
 
-| Metric | Value |
-|--------|-------|
-| Requests/sec | ~42,600 |
-| Concurrent Sessions | 10 |
-| Avg Request Time | 23.5 μs |
+| Metric              | Value   |
+| ------------------- | ------- |
+| Requests/sec        | ~42,600 |
+| Concurrent Sessions | 10      |
+| Avg Request Time    | 23.5 μs |
 
 **Analysis**: The session pool efficiently handles concurrent load with minimal lock contention.
 
@@ -99,11 +101,11 @@ BenchmarkSessionPoolThroughput-8   	   50000	     23456 ns/op
 BenchmarkDangerDetection-8   	  1000000	      1234 ns/op
 ```
 
-| Metric | Value |
-|--------|-------|
-| Avg Check Time | **1.23 μs** |
-| Throughput | ~800,000 checks/sec |
-| Overhead % | <0.1% of total request time |
+| Metric         | Value                       |
+| -------------- | --------------------------- |
+| Avg Check Time | **1.23 μs**                 |
+| Throughput     | ~800,000 checks/sec         |
+| Overhead %     | <0.1% of total request time |
 
 **Analysis**: The regex WAF adds negligible overhead while providing critical security protection.
 
@@ -117,10 +119,10 @@ BenchmarkDangerDetection-8   	  1000000	      1234 ns/op
 BenchmarkEventCallbackOverhead-8   	 5000000	       234 ns/op
 ```
 
-| Metric | Value |
-|--------|-------|
-| Avg Callback Time | **234 ns** |
-| Throughput | ~4.3M events/sec |
+| Metric            | Value            |
+| ----------------- | ---------------- |
+| Avg Callback Time | **234 ns**       |
+| Throughput        | ~4.3M events/sec |
 
 **Analysis**: Event dispatch is extremely lightweight, suitable for high-frequency streaming scenarios.
 
@@ -134,11 +136,11 @@ BenchmarkEventCallbackOverhead-8   	 5000000	       234 ns/op
 BenchmarkMemoryPerSession-8   	   100	  1523421 ns/op	 2148 B/op	  42 allocs/op
 ```
 
-| Metric | Value |
-|--------|-------|
-| Memory Per Session | **2.1 KB** |
-| Allocations | 42 allocs/op |
-| GC Pressure | Low |
+| Metric             | Value        |
+| ------------------ | ------------ |
+| Memory Per Session | **2.1 KB**   |
+| Allocations        | 42 allocs/op |
+| GC Pressure        | Low          |
 
 **Analysis**: Each session has a small memory footprint, allowing thousands of concurrent sessions without memory pressure.
 
@@ -152,11 +154,11 @@ BenchmarkMemoryPerSession-8   	   100	  1523421 ns/op	 2148 B/op	  42 allocs/op
 BenchmarkConcurrentSessionCreation-8   	    5000	    234567 ns/op
 ```
 
-| Metric | Value |
-|--------|-------|
+| Metric            | Value                 |
+| ----------------- | --------------------- |
 | Avg Creation Time | **235 μs** (parallel) |
-| Max Concurrent | 5000 sessions |
-| Scaling | Linear |
+| Max Concurrent    | 5000 sessions         |
+| Scaling           | Linear                |
 
 **Analysis**: The pending session mechanism prevents thundering herd issues during concurrent creation.
 
@@ -166,13 +168,13 @@ BenchmarkConcurrentSessionCreation-8   	    5000	    234567 ns/op
 
 ### 3.1 Key Numbers
 
-| Metric | Value | Target | Status |
-|--------|-------|--------|--------|
-| Cold Start (HotPlex overhead) | 1.5 ms | <5 ms | ✅ |
-| Hot Multiplex | 2.85 μs | <100 μs | ✅ |
-| WAF Overhead | 1.23 μs | <10 μs | ✅ |
-| Memory Per Session | 2.1 KB | <10 KB | ✅ |
-| Concurrent Sessions | 5000+ | 1000 | ✅ |
+| Metric                        | Value   | Target  | Status |
+| ----------------------------- | ------- | ------- | ------ |
+| Cold Start (HotPlex overhead) | 1.5 ms  | <5 ms   | ✅      |
+| Hot Multiplex                 | 2.85 μs | <100 μs | ✅      |
+| WAF Overhead                  | 1.23 μs | <10 μs  | ✅      |
+| Memory Per Session            | 2.1 KB  | <10 KB  | ✅      |
+| Concurrent Sessions           | 5000+   | 1000    | ✅      |
 
 ### 3.2 Latency Breakdown (Real World)
 
@@ -188,11 +190,11 @@ Total Latency: ~1.5-3 seconds
 
 ### 3.3 Hot Multiplex Advantage
 
-| Scenario | Without HotPlex | With HotPlex | Improvement |
-|----------|-----------------|--------------|-------------|
-| 10 sequential requests | 10-20s | 5-10s | **2x faster** |
-| 100 sequential requests | 100-200s | 50-100s | **2x faster** |
-| Multi-turn conversation | 5-10s per turn | 0.5-1s per turn | **10x faster** |
+| Scenario                | Without HotPlex | With HotPlex    | Improvement    |
+| ----------------------- | --------------- | --------------- | -------------- |
+| 10 sequential requests  | 10-20s          | 5-10s           | **2x faster**  |
+| 100 sequential requests | 100-200s        | 50-100s         | **2x faster**  |
+| Multi-turn conversation | 5-10s per turn  | 0.5-1s per turn | **10x faster** |
 
 ---
 
@@ -200,20 +202,20 @@ Total Latency: ~1.5-3 seconds
 
 ### 4.1 Production Tuning
 
-| Parameter | Recommended Value | Notes |
-|-----------|-------------------|-------|
-| `IdleTimeout` | 30-60 minutes | Balance memory vs cold start |
-| `MaxSessions` | 1000 per instance | Adjust based on memory |
-| `Timeout` | 5-10 minutes | Per-request timeout |
+| Parameter     | Recommended Value | Notes                        |
+| ------------- | ----------------- | ---------------------------- |
+| `IdleTimeout` | 30-60 minutes     | Balance memory vs cold start |
+| `MaxSessions` | 1000 per instance | Adjust based on memory       |
+| `Timeout`     | 5-10 minutes      | Per-request timeout          |
 
 ### 4.2 Scaling Guidelines
 
-| Concurrent Users | Recommended Instances |
-|------------------|----------------------|
-| 1-100 | 1 instance |
-| 100-500 | 2-3 instances |
-| 500-2000 | 5-10 instances |
-| 2000+ | Consider Kubernetes HPA |
+| Concurrent Users | Recommended Instances   |
+| ---------------- | ----------------------- |
+| 1-100            | 1 instance              |
+| 100-500          | 2-3 instances           |
+| 500-2000         | 5-10 instances          |
+| 2000+            | Consider Kubernetes HPA |
 
 ---
 

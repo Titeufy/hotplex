@@ -1,3 +1,5 @@
+*Read this in other languages: [English](api.md), [简体中文](api_zh.md).*
+
 # HotPlex Server Mode Developer Manual
 
 HotPlex supports a dual-protocol server mode that allows it to act as a production-grade control plane for AI CLI agents. It natively handles standard agent protocols and provides a compatibility layer for the OpenCode ecosystem.

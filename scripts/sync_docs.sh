@@ -18,17 +18,26 @@ mkdir -p docs-site/public/images
 cp README.md docs-site/guide/getting-started.md
 cp README_zh.md docs-site/guide/getting-started_zh.md
 cp docs/quick-start.md docs-site/guide/quick-start.md
+cp docs/quick-start_zh.md docs-site/guide/quick-start_zh.md
 cp docs/architecture.md docs-site/guide/architecture.md
 cp docs/architecture_zh.md docs-site/guide/architecture_zh.md
 cp SECURITY.md docs-site/guide/security.md
+cp SECURITY_zh.md docs-site/guide/security_zh.md
 cp docs/server/api.md docs-site/guide/websocket.md
 cp docs/providers/opencode.md docs-site/guide/opencode-http.md
 cp docs/providers/opencode_zh.md docs-site/guide/opencode-http_zh.md
 cp docs/hooks-architecture.md docs-site/guide/hooks.md
+cp docs/hooks-architecture_zh.md docs-site/guide/hooks_zh.md
 cp docs/observability-guide.md docs-site/guide/observability.md
+cp docs/observability-guide_zh.md docs-site/guide/observability_zh.md
 cp docs/docker-deployment.md docs-site/guide/docker.md
+cp docs/docker-deployment_zh.md docs-site/guide/docker_zh.md
 cp docs/production-guide.md docs-site/guide/deployment.md
+cp docs/production-guide_zh.md docs-site/guide/deployment_zh.md
 cp docs/benchmark-report.md docs-site/guide/performance.md
+cp docs/benchmark-report_zh.md docs-site/guide/performance_zh.md
+cp docs/roadmap-2026.md docs-site/guide/roadmap.md
+cp docs/roadmap-2026_zh.md docs-site/guide/roadmap_zh.md
 
 # --- SDKs ---
 cp docs/sdk-guide.md docs-site/sdks/go-sdk.md
@@ -39,6 +48,8 @@ cp sdks/typescript/README.md docs-site/sdks/typescript-sdk.md
 # --- Reference ---
 cp docs/server/api.md docs-site/reference/api.md
 cp docs/server/api_zh.md docs-site/reference/api_zh.md
+cp docs/README.md docs-site/reference/index.md
+cp docs/README_zh.md docs-site/reference/index_zh.md
 
 # --- Assets ---
 if [ -d "docs/images" ]; then
@@ -73,11 +84,14 @@ find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?(ser
 find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?README(_zh)?\.md\)|](/guide/getting-started\1.md)|g' {} +
 
 # Other Internal Guides rewritten for VitePress
-find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?quick-start(\.md)?\)|](/guide/quick-start.md)|g' {} +
-find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?observability-guide(\.md)?\)|](/guide/observability.md)|g' {} +
-find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?docker-deployment(\.md)?\)|](/guide/docker.md)|g' {} +
-find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?production-guide(\.md)?\)|](/guide/deployment.md)|g' {} +
-find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?benchmark-report(\.md)?\)|](/guide/performance.md)|g' {} +
+find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?quick-start(_zh)?(\.md)?\)|](/guide/quick-start\2.md)|g' {} +
+find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?observability-guide(_zh)?(\.md)?\)|](/guide/observability\2.md)|g' {} +
+find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?docker-deployment(_zh)?(\.md)?\)|](/guide/docker\2.md)|g' {} +
+find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?production-guide(_zh)?(\.md)?\)|](/guide/deployment\2.md)|g' {} +
+find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?benchmark-report(_zh)?(\.md)?\)|](/guide/performance\2.md)|g' {} +
+find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?roadmap-2026(_zh)?(\.md)?\)|](/guide/roadmap\2.md)|g' {} +
+find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?hooks-architecture(_zh)?(\.md)?\)|](/guide/hooks\2.md)|g' {} +
+find docs-site -name "*.md" -type f -exec sed -E -i.bak 's!\]\(\.?/?SECURITY(_zh)?(\.md)?\)!](/guide/security\1.md)!g' {} +
 
 # Redirect GitHub-only URLs (Examples, CONTRIBUTING, LICENSE, Roadmap, ClaudeCode)
 find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?\.\./_examples/([^)]*)\)|](https://github.com/hrygo/hotplex/tree/main/_examples/\1)|g' {} +

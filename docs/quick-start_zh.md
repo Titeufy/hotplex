@@ -1,47 +1,47 @@
 *Read this in other languages: [English](quick-start.md), [简体中文](quick-start_zh.md).*
 
-# Quick Start Guide
+# 快速入门指南
 
-Get up and running with HotPlex in 5 minutes.
+在 5 分钟内快速启动并运行 HotPlex。
 
-## Prerequisites
+## 前置要求
 
-Before starting, ensure you have:
+在开始之前，请确保您已安装：
 
-1. **Go 1.21+** installed (for Go SDK)
-2. **Claude Code CLI** or **OpenCode CLI** installed and authenticated
+1.  **Go 1.21+** (用于 Go SDK)
+2.  已安装并认证的 **Claude Code CLI** 或 **OpenCode CLI**
 
-### Install Claude Code CLI
+### 安装 Claude Code CLI
 
 ```bash
 # macOS / Linux / WSL
 curl -fsSL https://claude.ai/install.sh | bash
 
-# Authenticate
+# 认证
 claude auth
 ```
 
-### Install OpenCode CLI
+### 安装 OpenCode CLI
 
 ```bash
-# npm
+# 使用 npm
 npm install -g @opencode/opencode
 
-# Or use Homebrew
+# 或使用 Homebrew
 brew install opencode
 ```
 
 ---
 
-## Option 1: Go SDK (Recommended)
+## 选项 1：Go SDK (推荐)
 
-### Step 1: Install
+### 第一步：安装
 
 ```bash
 go get github.com/hrygo/hotplex
 ```
 
-### Step 2: Create `main.go`
+### 第二步：创建 `main.go`
 
 ```go
 package main
@@ -55,7 +55,7 @@ import (
 )
 
 func main() {
-    // Initialize the engine
+    // 初始化引擎
     engine, err := hotplex.NewEngine(hotplex.EngineOptions{
         Timeout:        5 * time.Minute,
         PermissionMode: "bypassPermissions",
@@ -65,15 +65,15 @@ func main() {
     }
     defer engine.Close()
 
-    // Configure the session
+    // 配置会话
     cfg := &hotplex.Config{
         WorkDir:   "/tmp/hotplex-demo",
         SessionID: "my-first-session",
     }
 
-    // Execute a prompt
+    // 执行提示词
     ctx := context.Background()
-    err = engine.Execute(ctx, cfg, "Write a hello world in Go", 
+    err = engine.Execute(ctx, cfg, "用 Go 写一个 hello world", 
         func(eventType string, data any) error {
             if eventType == "answer" {
                 fmt.Print(data)
@@ -87,7 +87,7 @@ func main() {
 }
 ```
 
-### Step 3: Run
+### 第三步：运行
 
 ```bash
 go run main.go
@@ -95,11 +95,11 @@ go run main.go
 
 ---
 
-## Option 2: Standalone Server
+## 选项 2：独立服务端
 
-Run HotPlex as a standalone server for multi-language clients.
+将 HotPlex 作为独立服务端运行，支持多语言客户端。
 
-### Step 1: Build
+### 第一步：构建
 
 ```bash
 git clone https://github.com/hrygo/hotplex.git
@@ -107,15 +107,15 @@ cd hotplex
 make build
 ```
 
-### Step 2: Run
+### 第二步：运行
 
 ```bash
 PORT=8080 ./dist/hotplexd
 ```
 
-### Step 3: Connect
+### 第三步：连接
 
-**WebSocket (any language):**
+**WebSocket (任何语言):**
 ```
 ws://localhost:8080/ws/v1/agent
 ```
@@ -127,29 +127,29 @@ http://localhost:8080
 
 ---
 
-## Option 3: Python SDK
+## 选项 3：Python SDK
 
-### Step 1: Install
+### 第一步：安装
 
 ```bash
 pip install hotplex
 ```
 
-### Step 2: Create `main.py`
+### 第二步：创建 `main.py`
 
 ```python
 from hotplex import HotPlexClient, Config
 
 with HotPlexClient(url="ws://localhost:8080/ws/v1/agent") as client:
     for event in client.execute_stream(
-        prompt="Write a hello world in Python",
+        prompt="用 Python 写一个 hello world",
         config=Config(work_dir="/tmp", session_id="py-demo")
     ):
         if event.type == "answer":
             print(event.data, end="")
 ```
 
-### Step 3: Run
+### 第三步：运行
 
 ```bash
 python main.py
@@ -157,20 +157,20 @@ python main.py
 
 ---
 
-## What's Next?
+## 下一步
 
-- [Architecture Deep Dive](architecture.md) - Learn how HotPlex works
-- [SDK Developer Guide](sdk-guide.md) - Complete SDK reference
-- [Examples](../_examples/) - More code examples
-- [Benchmark Report](benchmark-report.md) - Performance data
+- [架构深度解析](architecture_zh.md) - 了解 HotPlex 的工作原理
+- [SDK 开发者指南](sdk-guide_zh.md) - 完整的 SDK 参考
+- [代码示例](../_examples/) - 更多代码示例
+- [基准测试报告](benchmark-report_zh.md) - 性能数据
 
 ---
 
-## Common Issues
+## 常见问题
 
 ### "claude: command not found"
 
-Install Claude Code CLI:
+安装 Claude Code CLI:
 ```bash
 curl -fsSL https://claude.ai/install.sh | bash
 claude auth
@@ -178,18 +178,18 @@ claude auth
 
 ### "Permission denied"
 
-Make sure the work directory exists and is writable:
+确保工作目录存在且可写:
 ```bash
 mkdir -p /tmp/hotplex-demo
 ```
 
 ### "Session not found"
 
-Sessions are identified by `SessionID`. Use the same ID for multi-turn conversations.
+会话通过 `SessionID` 标识。在多轮对话中使用相同的 ID。
 
 ---
 
-## Need Help?
+## 需要帮助？
 
 - [GitHub Issues](https://github.com/hrygo/hotplex/issues)
 - [Discussions](https://github.com/hrygo/hotplex/discussions)

@@ -1,3 +1,5 @@
+*Read this in other languages: [English](roadmap-2026.md), [简体中文](roadmap-2026_zh.md).*
+
 # HotPlex 2026 Roadmap
 
 > **Mission**: Become the definitive execution engine for the Local AI ecosystem.
