@@ -93,6 +93,11 @@ type TelegramAdapter struct {
 	mu       sync.RWMutex
 	handler  MessageHandler
 	running  bool
+	// Rate limiting
+	rateLimiter *RateLimiter
+	// Session cleanup
+	sessionTimeout time.Duration
+	cleanupDone    chan struct{}
 }
 
 // TelegramSession Session for Telegram user
@@ -110,9 +115,12 @@ func NewTelegramAdapter(config TelegramConfig, logger *slog.Logger) *TelegramAda
 		config.ServerAddr = ":8080"
 	}
 	return &TelegramAdapter{
-		config:   config,
-		logger:   logger,
-		sessions: make(map[string]*TelegramSession),
+		config:         config,
+		logger:         logger,
+		sessions:       make(map[string]*TelegramSession),
+		rateLimiter:    NewRateLimiter(30, 10), // 30 messages, refill 10 per second
+		sessionTimeout: 30 * time.Minute,       // Default 30 minute timeout
+		cleanupDone:    make(chan struct{}),
 	}
 }
 
@@ -148,6 +156,9 @@ func (a *TelegramAdapter) Start(ctx context.Context) error {
 		}
 	}()
 
+	// Start session cleanup goroutine
+	go a.cleanupSessions()
+
 	// Set webhook if URL provided
 	if a.config.WebhookURL != "" {
 		if err := a.setWebhook(ctx); err != nil {
@@ -164,6 +175,9 @@ func (a *TelegramAdapter) Stop() error {
 	if !a.running {
 		return nil
 	}
+
+	// Signal cleanup goroutine to stop
+	close(a.cleanupDone)
 
 	// Remove webhook
 	if a.config.WebhookURL != "" {
@@ -182,8 +196,47 @@ func (a *TelegramAdapter) Stop() error {
 	return nil
 }
 
+// cleanupSessions periodically removes expired sessions
+func (a *TelegramAdapter) cleanupSessions() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-a.cleanupDone:
+			return
+		case <-ticker.C:
+			a.mu.Lock()
+			now := time.Now()
+			for key, session := range a.sessions {
+				if now.Sub(session.LastActive) > a.sessionTimeout {
+					delete(a.sessions, key)
+					a.logger.Info("Session expired", "session", session.SessionID, "user", session.UserID)
+				}
+			}
+			a.mu.Unlock()
+		}
+	}
+}
+
 // SendMessage Send message to Telegram user
 func (a *TelegramAdapter) SendMessage(ctx context.Context, sessionID string, msg *ChatMessage) error {
+	// Apply rate limiting
+	if err := a.rateLimiter.Wait(ctx); err != nil {
+		return fmt.Errorf("rate limited: %w", err)
+	}
+
+	// Retry with exponential backoff
+	return RetryWithBackoff(ctx, RetryConfig{
+		MaxAttempts: 3,
+		BaseDelay:   500 * time.Millisecond,
+		MaxDelay:    5 * time.Second,
+	}, func() error {
+		return a.sendMessage(ctx, sessionID, msg)
+	})
+}
+
+func (a *TelegramAdapter) sendMessage(ctx context.Context, sessionID string, msg *ChatMessage) error {
 	chatID, ok := msg.Metadata["chat_id"].(int64)
 	if !ok || chatID == 0 {
 		return fmt.Errorf("chat_id not found in metadata")
