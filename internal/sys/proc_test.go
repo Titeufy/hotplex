@@ -11,7 +11,7 @@ import (
 
 func TestSetupCmdSysProcAttr(t *testing.T) {
 	cmd := exec.Command("echo", "test")
-	SetupCmdSysProcAttr(cmd)
+	_, err := SetupCmdSysProcAttr(cmd)
 
 	// Verify SysProcAttr is set
 	if cmd.SysProcAttr == nil {
@@ -22,14 +22,22 @@ func TestSetupCmdSysProcAttr(t *testing.T) {
 	if !cmd.SysProcAttr.Setpgid {
 		t.Error("Setpgid should be true")
 	}
+
+	// Unix always returns nil error
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
 }
 
 func TestKillProcessGroup(t *testing.T) {
 	// Start a simple process
 	cmd := exec.Command("sleep", "10")
-	SetupCmdSysProcAttr(cmd)
+	_, err := SetupCmdSysProcAttr(cmd)
+	if err != nil {
+		t.Skipf("Skipping: failed to setup sys proc attr: %v", err)
+	}
 
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		t.Fatalf("Failed to start process: %v", err)
 	}
@@ -37,7 +45,7 @@ func TestKillProcessGroup(t *testing.T) {
 	pid := cmd.Process.Pid
 
 	// Kill the process group
-	KillProcessGroup(cmd)
+	KillProcessGroup(cmd, 0)
 
 	// Wait for process to finish
 	_ = cmd.Wait()
@@ -57,21 +65,24 @@ func TestKillProcessGroup(t *testing.T) {
 
 func TestKillProcessGroup_NilCmd(t *testing.T) {
 	// Should not panic with nil cmd
-	KillProcessGroup(nil)
+	KillProcessGroup(nil, 0)
 }
 
 func TestKillProcessGroup_NilProcess(t *testing.T) {
 	// Should not panic with nil Process
 	cmd := &exec.Cmd{}
-	KillProcessGroup(cmd)
+	KillProcessGroup(cmd, 0)
 }
 
 func TestIsProcessAlive(t *testing.T) {
 	// Start a process
 	cmd := exec.Command("sleep", "1")
-	SetupCmdSysProcAttr(cmd)
+	_, err := SetupCmdSysProcAttr(cmd)
+	if err != nil {
+		t.Skipf("Skipping: failed to setup sys proc attr: %v", err)
+	}
 
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		t.Fatalf("Failed to start process: %v", err)
 	}

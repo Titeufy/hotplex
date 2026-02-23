@@ -222,8 +222,8 @@ func (sm *SessionPool) cleanupSessionLocked(sessionID string) error {
 		sess.cancel()
 	}
 
-	// Force kill if needed
-	sys.KillProcessGroup(sess.cmd)
+	// Force kill if needed (pass jobHandle for Windows Job Object termination)
+	sys.KillProcessGroup(sess.cmd, sess.jobHandle)
 
 	return nil
 }
@@ -262,17 +262,33 @@ func (sm *SessionPool) startSession(ctx context.Context, sessionID string, cfg S
 	cmd := exec.CommandContext(sessCtx, sm.cliPath, args...)
 	cmd.Dir = cfg.WorkDir
 	cmd.Env = buildSafeEnv()
-	sys.SetupCmdSysProcAttr(cmd)
+
+	// Setup process attributes and get job handle (Windows) or zero (Unix)
+	jobHandle, err := sys.SetupCmdSysProcAttr(cmd)
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("setup sys proc attr: %w", err)
+	}
 
 	stdin, stdout, stderr, err := setupCmdPipes(cmd)
 	if err != nil {
 		cancel()
+		sys.CloseJobHandle(jobHandle) // Cleanup job handle on error
 		return nil, err
 	}
 
 	if err := cmd.Start(); err != nil {
 		startedCh <- err
+		sys.CloseJobHandle(jobHandle) // Cleanup job handle on error
 		return nil, fmt.Errorf("cmd start: %w", err)
+	}
+
+	// Assign process to Job Object on Windows
+	if jobHandle != 0 {
+		if err := sys.AssignProcessToJob(jobHandle, cmd.Process); err != nil {
+			sessLog.Warn("failed to assign process to Job Object", "error", err)
+			// Continue anyway - process is still running, will be killed via taskkill fallback
+		}
 	}
 
 	startedCh <- nil
@@ -290,6 +306,7 @@ func (sm *SessionPool) startSession(ctx context.Context, sessionID string, cfg S
 		stdout:            stdout,
 		stderr:            stderr,
 		cancel:            cancel,
+		jobHandle:         jobHandle,
 		CreatedAt:         time.Now(),
 		LastActive:        time.Now(),
 		Status:            SessionStatusStarting,

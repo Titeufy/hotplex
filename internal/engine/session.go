@@ -26,11 +26,12 @@ type Session struct {
 	TaskInstructions  string        // Persistent instructions for the session
 
 	// Process management
-	cmd    *exec.Cmd
-	stdin  io.WriteCloser
-	stdout io.ReadCloser
-	stderr io.ReadCloser
-	cancel context.CancelFunc
+	cmd       *exec.Cmd
+	stdin     io.WriteCloser
+	stdout    io.ReadCloser
+	stderr    io.ReadCloser
+	cancel    context.CancelFunc
+	jobHandle uintptr // Windows Job Object handle (0 on Unix)
 
 	CreatedAt    time.Time
 	LastActive   time.Time

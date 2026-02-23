@@ -48,10 +48,10 @@ type JOBOBJECT_EXTENDED_LIMIT_INFORMATION struct {
 }
 
 var (
-	kernel32DLL              *syscall.DLL
-	createJobObjectW         *syscall.Proc
-	setInformationJobObject  *syscall.Proc
-	assignProcessToJobObject *syscall.Proc
+	kernel32DLL              *syscall.LazyDLL
+	createJobObjectW         *syscall.LazyProc
+	setInformationJobObject  *syscall.LazyProc
+	assignProcessToJobObject *syscall.LazyProc
 	jobObjectInitOnce        sync.Once
 	jobObjectInitErr         error
 )
@@ -81,8 +81,20 @@ func initJobObjectAPI() error {
 	return jobObjectInitErr
 }
 
-func SetupCmdSysProcAttr(cmd *exec.Cmd) {
-	// Job Object assignment deferred until after process creation
+// SetupCmdSysProcAttr creates a Job Object and configures the command.
+// Returns the job handle for later use in AssignProcessToJob and KillProcessGroup.
+func SetupCmdSysProcAttr(cmd *exec.Cmd) (syscall.Handle, error) {
+	// Set Windows-specific process attributes
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP | syscall.CREATE_BREAKAWAY_FROM_JOB,
+	}
+
+	jobHandle, err := CreateJobObject()
+	if err != nil {
+		return 0, err
+	}
+	// Job Object assignment will be done after cmd.Start() in pool.go
+	return jobHandle, nil
 }
 
 func CreateJobObject() (syscall.Handle, error) {
@@ -120,9 +132,16 @@ func AssignProcessToJob(jobHandle syscall.Handle, process *os.Process) error {
 		return fmt.Errorf("job object API not available: %w", err)
 	}
 
+	// Open process handle - AssignProcessToJobObject requires a HANDLE, not a PID
+	processHandle, err := syscall.OpenProcess(syscall.PROCESS_SET_QUOTA|syscall.PROCESS_TERMINATE, false, uint32(process.Pid))
+	if err != nil {
+		return fmt.Errorf("failed to open process handle: %w", err)
+	}
+	defer syscall.CloseHandle(processHandle) //nolint:errcheck
+
 	ret, _, err := assignProcessToJobObject.Call(
 		uintptr(jobHandle),
-		uintptr(process.Pid),
+		uintptr(processHandle),
 	)
 	if ret == 0 {
 		return fmt.Errorf("AssignProcessToJobObject failed: %w", err)
@@ -130,27 +149,53 @@ func AssignProcessToJob(jobHandle syscall.Handle, process *os.Process) error {
 	return nil
 }
 
-func KillProcessGroup(cmd *exec.Cmd) {
-	if cmd == nil || cmd.Process == nil {
+func KillProcessGroup(cmd *exec.Cmd, jobHandle syscall.Handle) {
+	if cmd == nil {
 		return
 	}
 
-	taskkillPathOnce.Do(func() {
-		var err error
-		taskkillPath, err = exec.LookPath("taskkill")
-		if err != nil {
-			taskkillPath = os.Getenv("SystemRoot") + "\\system32\\taskkill.exe"
-		}
-	})
+	// First, try to close the Job Object (triggers KILL_ON_JOB_CLOSE)
+	if jobHandle != 0 {
+		_ = syscall.CloseHandle(jobHandle)
+	}
 
-	killCmd := exec.Command(taskkillPath, "/F", "/T", "/PID", fmt.Sprintf("%d", cmd.Process.Pid))
-	_ = killCmd.Run()
-	_ = cmd.Process.Kill()
+	// If process still exists, use taskkill as fallback
+	if cmd.Process != nil {
+		taskkillPathOnce.Do(func() {
+			var err error
+			taskkillPath, err = exec.LookPath("taskkill")
+			if err != nil {
+				taskkillPath = os.Getenv("SystemRoot") + "\\system32\\taskkill.exe"
+			}
+		})
+
+		killCmd := exec.Command(taskkillPath, "/F", "/T", "/PID", fmt.Sprintf("%d", cmd.Process.Pid))
+		_ = killCmd.Run()
+		_ = cmd.Process.Kill()
+	}
+}
+
+// CloseJobHandle safely closes a Windows Job Object handle.
+func CloseJobHandle(jobHandle syscall.Handle) {
+	if jobHandle != 0 {
+		_ = syscall.CloseHandle(jobHandle)
+	}
 }
 
 func IsProcessAlive(process *os.Process) bool {
 	if process == nil {
 		return false
 	}
-	return true
+	// Try to get process exit code to check if it's still running
+	handle, err := syscall.OpenProcess(syscall.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(process.Pid))
+	if err != nil {
+		return false // Process doesn't exist or can't be accessed
+	}
+	defer syscall.CloseHandle(handle) //nolint:errcheck
+
+	var exitCode uint32
+	if err := syscall.GetExitCodeProcess(handle, &exitCode); err != nil {
+		return false
+	}
+	return exitCode == syscall.STILL_ACTIVE
 }
