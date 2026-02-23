@@ -54,28 +54,40 @@ func (m *AdapterManager) GetAdapter(platform string) (ChatAdapter, bool) {
 }
 
 func (m *AdapterManager) StartAll(ctx context.Context) error {
+	// Copy adapters to local slice to avoid holding lock during blocking I/O
 	m.mu.RLock()
-	defer m.mu.RUnlock()
+	adapters := make([]ChatAdapter, 0, len(m.adapters))
+	for _, adapter := range m.adapters {
+		adapters = append(adapters, adapter)
+	}
+	m.mu.RUnlock()
 
-	for platform, adapter := range m.adapters {
+	// Start adapters without holding lock
+	for _, adapter := range adapters {
 		if err := adapter.Start(ctx); err != nil {
 			return err
 		}
-		m.logger.Info("Adapter started", "platform", platform)
+		m.logger.Info("Adapter started", "platform", adapter.Platform())
 	}
 	return nil
 }
 
 func (m *AdapterManager) StopAll() error {
+	// Copy adapters to local slice to avoid holding lock during blocking I/O
 	m.mu.Lock()
-	defer m.mu.Unlock()
+	adapters := make([]ChatAdapter, 0, len(m.adapters))
+	for _, adapter := range m.adapters {
+		adapters = append(adapters, adapter)
+	}
+	m.mu.Unlock()
 
-	for platform, adapter := range m.adapters {
+	// Stop adapters without holding lock
+	for _, adapter := range adapters {
 		if err := adapter.Stop(); err != nil {
-			m.logger.Error("Stop adapter failed", "platform", platform, "error", err)
+			m.logger.Error("Stop adapter failed", "platform", adapter.Platform(), "error", err)
 			continue
 		}
-		m.logger.Info("Adapter stopped", "platform", platform)
+		m.logger.Info("Adapter stopped", "platform", adapter.Platform())
 	}
 	return nil
 }

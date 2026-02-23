@@ -18,6 +18,7 @@ type WhatsAppConfig struct {
 	VerifyToken   string
 	ServerAddr    string
 	APIVersion    string
+	SystemPrompt  string
 }
 
 type WhatsAppIncomingMessage struct {
@@ -63,6 +64,9 @@ type WhatsAppAdapter struct {
 	mu       sync.RWMutex
 	handler  MessageHandler
 	running  bool
+	// Session cleanup
+	sessionTimeout time.Duration
+	cleanupDone    chan struct{}
 }
 
 type WhatsAppSession struct {
@@ -80,14 +84,21 @@ func NewWhatsAppAdapter(config WhatsAppConfig, logger *slog.Logger) *WhatsAppAda
 		config.APIVersion = "v21.0"
 	}
 	return &WhatsAppAdapter{
-		config:   config,
-		logger:   logger,
-		sessions: make(map[string]*WhatsAppSession),
+		config:         config,
+		logger:         logger,
+		sessions:       make(map[string]*WhatsAppSession),
+		sessionTimeout: 30 * time.Minute,
+		cleanupDone:    make(chan struct{}),
 	}
 }
 
 func (a *WhatsAppAdapter) Platform() string {
 	return "whatsapp"
+}
+
+// SystemPrompt Returns system prompt
+func (a *WhatsAppAdapter) SystemPrompt() string {
+	return a.config.SystemPrompt
 }
 
 func (a *WhatsAppAdapter) Start(ctx context.Context) error {
@@ -111,6 +122,9 @@ func (a *WhatsAppAdapter) Start(ctx context.Context) error {
 		}
 	}()
 
+	// Start session cleanup goroutine
+	go a.cleanupSessions()
+
 	a.running = true
 	return nil
 }
@@ -119,6 +133,8 @@ func (a *WhatsAppAdapter) Stop() error {
 	if !a.running {
 		return nil
 	}
+	// Signal cleanup goroutine to stop
+	close(a.cleanupDone)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -126,7 +142,6 @@ func (a *WhatsAppAdapter) Stop() error {
 	if err := a.server.Shutdown(ctx); err != nil {
 		return fmt.Errorf("shutdown server: %w", err)
 	}
-
 	a.running = false
 	a.logger.Info("WhatsApp adapter stopped")
 	return nil
@@ -203,8 +218,9 @@ func (a *WhatsAppAdapter) handleMessage(w http.ResponseWriter, r *http.Request) 
 				}
 
 				if a.handler != nil {
+					reqCtx := r.Context()
 					go func() {
-						if err := a.handler(context.Background(), chatMsg); err != nil {
+						if err := a.handler(reqCtx, chatMsg); err != nil {
 							a.logger.Error("Handle message failed", "error", err)
 						}
 					}()
@@ -292,4 +308,28 @@ func (a *WhatsAppAdapter) getOrCreateSession(userID string) string {
 
 	a.logger.Info("New session created", "session", session.SessionID, "user", userID)
 	return session.SessionID
+}
+
+// cleanupSessions periodically removes stale sessions
+func (a *WhatsAppAdapter) cleanupSessions() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-a.cleanupDone:
+			a.logger.Info("Session cleanup stopped")
+			return
+		case <-ticker.C:
+			a.mu.Lock()
+			now := time.Now()
+			for key, session := range a.sessions {
+				if now.Sub(session.LastActive) > a.sessionTimeout {
+					delete(a.sessions, key)
+					a.logger.Debug("Session removed", "session", session.SessionID, "inactive", now.Sub(session.LastActive))
+				}
+			}
+			a.mu.Unlock()
+		}
+	}
 }

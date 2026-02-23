@@ -115,7 +115,6 @@ func (q *MessageQueue) Start(adapterGetter func(string) (ChatAdapter, bool), sen
 func (q *MessageQueue) worker(id int, adapterGetter func(string) (ChatAdapter, bool), sendFn func(context.Context, string, string, *ChatMessage) error) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-
 	for {
 		select {
 		case <-q.ctx.Done():
@@ -125,20 +124,34 @@ func (q *MessageQueue) worker(id int, adapterGetter func(string) (ChatAdapter, b
 			if !ok {
 				continue
 			}
-
 			if err := sendFn(q.ctx, msg.Platform, msg.SessionID, msg.Message); err != nil {
 				msg.Retries++
 				if msg.Retries < 3 {
-					q.mu.Lock()
-					q.queue = append(q.queue, msg)
-					q.mu.Unlock()
-					q.logger.Warn("Message retry", "platform", msg.Platform, "retries", msg.Retries)
+					if err := q.Requeue(msg); err != nil {
+						q.logger.Error("Requeue failed, moving to DLQ", "error", err, "platform", msg.Platform)
+						q.AddToDLQ(msg)
+					} else {
+						q.logger.Warn("Message retry", "platform", msg.Platform, "retries", msg.Retries)
+					}
 				} else {
 					q.AddToDLQ(msg)
 				}
 			}
 		}
 	}
+}
+
+// Requeue adds a message back to the queue for retry
+func (q *MessageQueue) Requeue(msg *QueuedMessage) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	// Check size limit before re-queuing
+	if q.maxSize > 0 && len(q.queue) >= q.maxSize {
+		return ErrQueueFull
+	}
+	q.queue = append(q.queue, msg)
+	return nil
 }
 
 func (q *MessageQueue) Stop() {

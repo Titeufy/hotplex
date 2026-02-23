@@ -16,9 +16,10 @@ import (
 
 // DiscordConfig Discord Bot Configuration
 type DiscordConfig struct {
-	BotToken   string // Discord Bot Token
-	ServerAddr string
-	PublicKey  string // For interaction verification
+	BotToken     string // Discord Bot Token
+	ServerAddr   string
+	PublicKey    string // For interaction verification
+	SystemPrompt string // Custom system prompt for the AI agent
 }
 
 // DiscordInteraction Discord interaction payload
@@ -70,6 +71,9 @@ type DiscordAdapter struct {
 	mu       sync.RWMutex
 	handler  MessageHandler
 	running  bool
+	// Session cleanup
+	sessionTimeout time.Duration
+	cleanupDone    chan struct{}
 }
 
 // DiscordSession Session for Discord user
@@ -88,15 +92,22 @@ func NewDiscordAdapter(config DiscordConfig, logger *slog.Logger) *DiscordAdapte
 		config.ServerAddr = ":8080"
 	}
 	return &DiscordAdapter{
-		config:   config,
-		logger:   logger,
-		sessions: make(map[string]*DiscordSession),
+		config:         config,
+		logger:         logger,
+		sessions:       make(map[string]*DiscordSession),
+		sessionTimeout: 30 * time.Minute,
+		cleanupDone:    make(chan struct{}),
 	}
 }
 
 // Platform Returns platform name
 func (a *DiscordAdapter) Platform() string {
 	return "discord"
+}
+
+// SystemPrompt Returns system prompt
+func (a *DiscordAdapter) SystemPrompt() string {
+	return a.config.SystemPrompt
 }
 
 // SetHandler Set message handler
@@ -109,16 +120,13 @@ func (a *DiscordAdapter) Start(ctx context.Context) error {
 	if a.running {
 		return nil
 	}
-
 	mux := http.NewServeMux()
 	mux.HandleFunc("/webhook/interactions", a.handleInteraction)
 	mux.HandleFunc("/health", a.handleHealth)
-
 	a.server = &http.Server{
 		Addr:    a.config.ServerAddr,
 		Handler: mux,
 	}
-
 	go func() {
 		a.logger.Info("Starting Discord adapter", "addr", a.config.ServerAddr)
 		if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -126,6 +134,8 @@ func (a *DiscordAdapter) Start(ctx context.Context) error {
 		}
 	}()
 
+	// Start session cleanup goroutine
+	go a.cleanupSessions()
 	a.running = true
 	return nil
 }
@@ -136,13 +146,15 @@ func (a *DiscordAdapter) Stop() error {
 		return nil
 	}
 
+	// Signal cleanup goroutine to stop
+	close(a.cleanupDone)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := a.server.Shutdown(ctx); err != nil {
 		return fmt.Errorf("shutdown server: %w", err)
 	}
-
 	a.running = false
 	a.logger.Info("Discord adapter stopped")
 	return nil
@@ -276,7 +288,7 @@ func (a *DiscordAdapter) handleInteraction(w http.ResponseWriter, r *http.Reques
 
 	// Handle message command
 	if interaction.Type == 2 || interaction.Type == 3 {
-		a.handleMessageCommand(interaction)
+		a.handleMessageCommand(r.Context(), interaction)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -325,7 +337,7 @@ func (a *DiscordAdapter) verifySignature(r *http.Request, body []byte) bool {
 	return ed25519.Verify(publicKey, []byte(message), signatureBytes)
 }
 
-func (a *DiscordAdapter) handleMessageCommand(interaction DiscordInteraction) {
+func (a *DiscordAdapter) handleMessageCommand(ctx context.Context, interaction DiscordInteraction) {
 	var data struct {
 		Options []struct {
 			Name  string `json:"name"`
@@ -375,7 +387,7 @@ func (a *DiscordAdapter) handleMessageCommand(interaction DiscordInteraction) {
 
 	if a.handler != nil {
 		go func() {
-			if err := a.handler(context.Background(), msg); err != nil {
+			if err := a.handler(ctx, msg); err != nil {
 				a.logger.Error("Handle message failed", "error", err)
 			}
 		}()
@@ -409,4 +421,28 @@ func (a *DiscordAdapter) getOrCreateSession(userID, channelID, guildID string) s
 
 	a.logger.Info("New session created", "session", session.SessionID, "user", userID, "channel", channelID)
 	return session.SessionID
+}
+
+// cleanupSessions periodically removes stale sessions
+func (a *DiscordAdapter) cleanupSessions() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-a.cleanupDone:
+			a.logger.Info("Session cleanup stopped")
+			return
+		case <-ticker.C:
+			a.mu.Lock()
+			now := time.Now()
+			for key, session := range a.sessions {
+				if now.Sub(session.LastActive) > a.sessionTimeout {
+					delete(a.sessions, key)
+					a.logger.Debug("Session removed", "session", session.SessionID, "inactive", now.Sub(session.LastActive))
+				}
+			}
+			a.mu.Unlock()
+		}
+	}
 }

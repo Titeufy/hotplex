@@ -24,6 +24,7 @@ type DingTalkConfig struct {
 	CallbackKey   string
 	ServerAddr    string
 	MaxMessageLen int // Maximum message length (default 5000 for DingTalk)
+	SystemPrompt  string
 }
 
 type DingTalkCallbackRequest struct {
@@ -54,6 +55,9 @@ type DingTalkAdapter struct {
 	mu       sync.RWMutex
 	handler  MessageHandler
 	running  bool
+	// Session cleanup
+	sessionTimeout time.Duration
+	cleanupDone    chan struct{}
 	// Token cache
 	token       string
 	tokenExpire time.Time
@@ -72,14 +76,21 @@ func NewDingTalkAdapter(config DingTalkConfig, logger *slog.Logger) *DingTalkAda
 		config.ServerAddr = ":8080"
 	}
 	return &DingTalkAdapter{
-		config:   config,
-		logger:   logger,
-		sessions: make(map[string]*DingTalkSession),
+		config:         config,
+		logger:         logger,
+		sessions:       make(map[string]*DingTalkSession),
+		sessionTimeout: 30 * time.Minute,
+		cleanupDone:    make(chan struct{}),
 	}
 }
 
 func (a *DingTalkAdapter) Platform() string {
 	return "dingtalk"
+}
+
+// SystemPrompt Returns system prompt
+func (a *DingTalkAdapter) SystemPrompt() string {
+	return a.config.SystemPrompt
 }
 
 func (a *DingTalkAdapter) Start(ctx context.Context) error {
@@ -103,6 +114,9 @@ func (a *DingTalkAdapter) Start(ctx context.Context) error {
 		}
 	}()
 
+	// Start session cleanup goroutine
+	go a.cleanupSessions()
+
 	a.running = true
 	return nil
 }
@@ -111,6 +125,9 @@ func (a *DingTalkAdapter) Stop() error {
 	if !a.running {
 		return nil
 	}
+
+	// Signal cleanup goroutine to stop
+	close(a.cleanupDone)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -200,8 +217,9 @@ func (a *DingTalkAdapter) handleCallbackMessage(w http.ResponseWriter, r *http.R
 	}
 
 	if a.handler != nil {
+		reqCtx := r.Context()
 		go func() {
-			if err := a.handler(context.Background(), msg); err != nil {
+			if err := a.handler(reqCtx, msg); err != nil {
 				a.logger.Error("Handle message failed", "error", err)
 			}
 		}()
@@ -419,4 +437,28 @@ func (a *DingTalkAdapter) chunkMessage(content string) []string {
 	}
 
 	return chunks
+}
+
+// cleanupSessions periodically removes stale sessions
+func (a *DingTalkAdapter) cleanupSessions() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-a.cleanupDone:
+			a.logger.Info("Session cleanup stopped")
+			return
+		case <-ticker.C:
+			a.mu.Lock()
+			now := time.Now()
+			for key, session := range a.sessions {
+				if now.Sub(session.LastActive) > a.sessionTimeout {
+					delete(a.sessions, key)
+					a.logger.Debug("Session removed", "session", session.SessionID, "inactive", now.Sub(session.LastActive))
+				}
+			}
+			a.mu.Unlock()
+		}
+	}
 }

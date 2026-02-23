@@ -101,6 +101,7 @@ type ChatMessage struct {
 
 type ChatAdapter interface {
 	Platform() string
+	SystemPrompt() string
 	Start(ctx context.Context) error
 	Stop() error
 	SendMessage(ctx context.Context, sessionID string, msg *ChatMessage) error

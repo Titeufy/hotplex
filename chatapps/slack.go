@@ -22,6 +22,7 @@ type SlackConfig struct {
 	AppToken      string // xapp- token for Socket Mode
 	SigningSecret string
 	ServerAddr    string
+	SystemPrompt  string
 }
 
 // SlackEvent Slack Event API payload
@@ -111,6 +112,11 @@ func NewSlackAdapter(config SlackConfig, logger *slog.Logger) *SlackAdapter {
 // Platform Returns platform name
 func (a *SlackAdapter) Platform() string {
 	return "slack"
+}
+
+// SystemPrompt Returns system prompt
+func (a *SlackAdapter) SystemPrompt() string {
+	return a.config.SystemPrompt
 }
 
 // SetHandler Set message handler
@@ -340,13 +346,13 @@ func (a *SlackAdapter) handleEvent(w http.ResponseWriter, r *http.Request) {
 
 	// Handle event
 	if event.Type == "event_callback" {
-		a.handleEventCallback(event.Event)
+		a.handleEventCallback(r.Context(), event.Event)
 	}
 
 	w.WriteHeader(http.StatusOK)
 }
 
-func (a *SlackAdapter) handleEventCallback(eventData json.RawMessage) {
+func (a *SlackAdapter) handleEventCallback(ctx context.Context, eventData json.RawMessage) {
 	var msgEvent SlackMessageEvent
 	if err := json.Unmarshal(eventData, &msgEvent); err != nil {
 		a.logger.Error("Parse message event failed", "error", err)
@@ -381,7 +387,7 @@ func (a *SlackAdapter) handleEventCallback(eventData json.RawMessage) {
 
 	if a.handler != nil {
 		go func() {
-			if err := a.handler(context.Background(), msg); err != nil {
+			if err := a.handler(ctx, msg); err != nil {
 				a.logger.Error("Handle message failed", "error", err)
 			}
 		}()

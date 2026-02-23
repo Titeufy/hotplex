@@ -14,10 +14,11 @@ import (
 
 // TelegramConfig Telegram Bot Configuration
 type TelegramConfig struct {
-	BotToken    string // Bot Token from @BotFather
-	WebhookURL  string // Public URL for webhook
-	ServerAddr  string // Local server address
-	SecretToken string // Secret token for webhook verification (required for security)
+	BotToken     string // Bot Token from @BotFather
+	WebhookURL   string // Public URL for webhook
+	ServerAddr   string // Local server address
+	SecretToken  string // Secret token for webhook verification (required for security)
+	SystemPrompt string // Custom system prompt for the AI agent
 }
 
 // TelegramUpdate represents incoming Telegram update
@@ -129,6 +130,10 @@ func (a *TelegramAdapter) Platform() string {
 	return "telegram"
 }
 
+func (a *TelegramAdapter) SystemPrompt() string {
+	return a.config.SystemPrompt
+}
+
 // SetHandler Set message handler
 func (a *TelegramAdapter) SetHandler(handler MessageHandler) {
 	a.handler = handler
@@ -181,7 +186,7 @@ func (a *TelegramAdapter) Stop() error {
 
 	// Remove webhook
 	if a.config.WebhookURL != "" {
-		_ = a.removeWebhook(context.Background())
+		_ = a.removeWebhook(context.Background()) // Using background context for cleanup during shutdown - safe since we're shutting down
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -482,8 +487,9 @@ func (a *TelegramAdapter) handleWebhook(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if a.handler != nil {
+		reqCtx := r.Context()
 		go func() {
-			if err := a.handler(context.Background(), msg); err != nil {
+			if err := a.handler(reqCtx, msg); err != nil {
 				a.logger.Error("Handle message failed", "error", err)
 			}
 		}()
