@@ -1,3 +1,22 @@
+## [v0.9.2] - 2026-02-23
+
+### 🛡️ Quality Audit Fixes v1.0
+
+This version addresses critical findings from the first comprehensive quality audit, focusing on concurrency safety, security hardening, and error handling improvements.
+
+### Fixed
+ **Concurrency Safety**: Resolved race conditions in session pool management and event dispatching.
+ **Security Hardening**: Fixed potential security issues identified in the audit report.
+ **Error Handling**: Improved error propagation and cleanup in the engine lifecycle.
+ **Documentation**: Added favicon to docs-site for proper browser tab icon display.
+
+### Changed
+ **Code Formatting**: Applied `go fmt` formatting across the codebase to maintain consistent style.
+
+### Documentation
+ Added comprehensive Quality Audit Report v1.0 (`docs/quality-audit-report.md`)
+
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
