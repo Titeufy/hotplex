@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: "HotPlex"
-  text: "AI Agent Control Plane"
-  tagline: Transforming AI CLI Agents into Production-Ready Interactive Services
+  text: "The AI Agent Control Plane"
+  tagline: "Turn your AI CLI Agents into high-performance, production-ready interactive services."
   image:
     src: /logo.svg
     alt: HotPlex
@@ -19,30 +19,42 @@ hero:
 features:
   - icon: 🔄
     title: Cli-as-a-Service
-    details: Shift from "run-and-exit" to persistent sessions with continuous instruction flow and context preservation.
-
-  - icon: 🧩
-    title: Ease of Integration
-    details: A unified Go SDK and protocol gateway that plugs top-tier Agent capabilities into your product instantly.
-
+    details: Upgrade "run-and-exit" CLI tools into persistent, stateful interactive services with full context preservation.
+  
   - icon: 🚀
-    title: Zero Spin-up Overhead
-    details: Eliminate the long wait times for Node.js/Python runtimes to provide sub-second user feedback.
-
+    title: Zero Startup Latency
+    details: Hot-multiplexing eliminates Node.js/Python spin-up costs, delivering sub-second AI response times.
+  
   - icon: 🛡️
-    title: Fast & Balanced Security
-    details: Command-level WAF and PGID isolation provide a protective glove for AI shell operations.
-
+    title: Enterprise Security
+    details: Multi-layer protection with PGID isolation, command-level WAF, and workspace boundary locking.
+  
+  - icon: 💬
+    title: ChatApps Native
+    details: Built-in adapters for Telegram and DingTalk, bringing Agent capabilities to your favorite communication tools.
+  
   - icon: 🔌
-    title: Ready for Scale
-    details: Support for native Go embedding or standalone Proxy mode with WebSocket and OpenCode-compatible protocols.
-
+    title: Unified Integration
+    details: Seamlessly integrate via native Go SDK, WebSocket protocol, or OpenCode-compatible HTTP/SSE endpoints.
+  
   - icon: 📊
-    title: Production Observability
-    details: Built-in OpenTelemetry tracing, Prometheus metrics, and health check endpoints.
+    title: Full Observability
+    details: Production-ready with OpenTelemetry tracing, Prometheus metrics, and automated health monitoring.
 ---
 
-## Quick Start
+## ⚡ Why HotPlex?
+
+HotPlex is the **Strategic Bridge** for AI agent engineering. It decouples the access layer from the execution engine, allowing you to build professional AI products without worry about the overhead of managing long-lived agent processes.
+
+### sub-second Interaction
+Forget the 3-5 second wait for agent runtimes. HotPlex maintains a "hot" pool of sessions, making your AI interactions feel like a native chat experience.
+
+### Secure by Design
+Every agent runs in a sandbox. Our **Danger WAF** intercepts destructive shell commands, while **PGID isolation** ensures no orphan processes are left behind on your server.
+
+---
+
+## 🚀 Quick Start
 
 ### Install
 
@@ -50,7 +62,7 @@ features:
 go get github.com/hrygo/hotplex
 ```
 
-### Basic Usage
+### Basic Usage (Go SDK)
 
 ```go
 package main
@@ -58,54 +70,59 @@ package main
 import (
     "context"
     "fmt"
-    "time"
     "github.com/hrygo/hotplex"
 )
 
 func main() {
+    // 1. Initialize the Engine
     opts := hotplex.EngineOptions{
-        Timeout:         5 * time.Minute,
         PermissionMode:  "bypassPermissions",
-        AllowedTools:    []string{"Bash", "Edit", "Read", "FileSearch"},
+        AllowedTools:    []string{"Bash", "Edit", "Read"},
     }
     engine, _ := hotplex.NewEngine(opts)
     defer engine.Close()
 
+    // 2. Configure a persistent session
     cfg := &hotplex.Config{
-        WorkDir:          "/tmp/ai-sandbox",
-        SessionID:        "user-123",
-        TaskInstructions: "You are a senior Go systems engineer.",
+        WorkDir:   "/tmp/ai-sandbox",
+        SessionID: "user-unique-session",
     }
 
-    ctx := context.Background()
-    err := engine.Execute(ctx, cfg, "Refactor the main.go", 
+    // 3. Execute with real-time streaming
+    engine.Execute(context.Background(), cfg, "List files in current directory", 
         func(eventType string, data any) error {
             if eventType == "answer" {
-                fmt.Printf("🤖 %v\n", data)
+                fmt.Printf("🤖: %v\n", data)
             }
             return nil
         })
 }
 ```
 
-## Multi-Language SDKs
+---
 
-HotPlex provides official SDKs for multiple languages:
+## 🌐 Connectivity & Ecosystem
 
-| SDK                                    | Status   | Description                  |
-| -------------------------------------- | -------- | ---------------------------- |
-| [Go SDK](/sdks/go-sdk)                 | ✅ Stable | Native Go integration        |
-| [Python SDK](/sdks/python-sdk)         | ✅ Stable | WebSocket client for Python  |
-| [TypeScript SDK](/sdks/typescript-sdk) | ✅ Stable | TypeScript/JavaScript client |
+HotPlex is designed to live at the center of your AI infrastructure.
 
-## Roadmap
+| Access Layer      | Protocol       | Best Use Case                                          |
+| ----------------- | -------------- | ------------------------------------------------------ |
+| **Go SDK**        | Internal Logic | Native integration for high-performance backends.      |
+| **ChatApps**      | Webhook/API    | Direct interaction via Telegram, DingTalk, or Slack.   |
+| **Proxy Mode**    | WebSocket      | Building rich, real-time web UIs for your AI Agents.   |
+| **Compatibility** | HTTP/SSE       | Drop-in replacement for OpenCode or OpenAI-like tools. |
 
-We are actively evolving HotPlex to become the definitive execution engine for the Local AI ecosystem.
+---
 
-- [x] Provider Abstraction (Claude Code, OpenCode)
-- [x] Event Hooks System
-- [x] OpenTelemetry Integration
-- [x] Prometheus Metrics
-- [x] Docker Remote Execution
-- [x] Multi-Language SDKs
-- [ ] L2/L3 Isolation (H2 2026)
+## 🗺️ Roadmap
+
+- [x] **v0.9.0**: Multi-language SDKs (Python, TS) & Docker Execution.
+- [x] **v0.10.0**: ChatApps Platform Integration (Telegram/DingTalk).
+- [ ] **L2/L3 Isolation**: Kernel-level PID/Net namespaces (H2 2026).
+- [ ] **WASM Runtime**: Fully isolated tool execution via WebAssembly.
+
+---
+
+<p align="center">
+  <i>Built with ❤️ for the AI Engineering community.</i>
+</p>

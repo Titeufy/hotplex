@@ -25,7 +25,6 @@ cp docs/quick-start_zh.md docs-site/guide/quick-start_zh.md
 cp docs/architecture.md docs-site/guide/architecture.md
 cp docs/architecture_zh.md docs-site/guide/architecture_zh.md
 cp SECURITY.md docs-site/guide/security.md
-cp SECURITY_zh.md docs-site/guide/security_zh.md
 cp docs/server/api.md docs-site/guide/websocket.md
 cp docs/providers/opencode.md docs-site/guide/opencode-http.md
 cp docs/providers/opencode_zh.md docs-site/guide/opencode-http_zh.md
@@ -39,7 +38,8 @@ cp docs/production-guide.md docs-site/guide/deployment.md
 cp docs/production-guide_zh.md docs-site/guide/deployment_zh.md
 cp docs/benchmark-report.md docs-site/guide/performance.md
 cp docs/benchmark-report_zh.md docs-site/guide/performance_zh.md
-cp docs/chatapps-guide.md docs-site/guide/chatapps.md
+cp docs/chatapps/chatapps-guide.md docs-site/guide/chatapps.md
+cp docs/chatapps/chatapps-dingtalk-analysis.md docs-site/guide/chatapps-dingtalk.md
 # Note: Roadmap 2026 has been archived and is excluded from sync.
 
 # --- SDKs ---
@@ -61,6 +61,10 @@ cp docs/migration/migration-guide-v0.8.0_zh.md docs-site/migration/v0.8.0_zh.md
 cp docs/migration/migration-guide-v0.9.0.md docs-site/migration/v0.9.0.md
 cp docs/migration/migration-guide-v0.9.0_zh.md docs-site/migration/v0.9.0_zh.md
 
+# --- Plan ---
+mkdir -p docs-site/plan
+cp docs/plan/technical-plan-draft.md docs-site/plan/technical-plan.md
+
 # --- Assets ---
 if [ -d "docs/images" ]; then
     cp -r docs/images/* docs-site/public/images/
@@ -74,6 +78,7 @@ fi
 # --- Path Fixes for VitePress ---
 # Fix image paths
 find docs-site -name "*.md" -type f -exec sed -i.bak 's|docs/images|/images|g' {} +
+find docs-site -name "*.md" -type f -exec sed -i.bak 's|\.\./images|/images|g' {} +
 find docs-site -name "*.md" -type f -exec sed -i.bak 's|\./images|/images|g' {} +
 find docs-site -name "*.md" -type f -exec sed -i.bak 's|\.github/assets|/assets|g' {} +
 
@@ -100,10 +105,12 @@ find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?dock
 find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?production-guide(_zh)?(\.md)?\)|](/guide/deployment\2.md)|g' {} +
 find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?benchmark-report(_zh)?(\.md)?\)|](/guide/performance\2.md)|g' {} +
 # Roadmap links are redirected to GitHub (see Redirect section)
-find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?chatapps-guide(_zh)?(\.md)?\)|](/guide/chatapps.md)|g' {} +
+find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?(chatapps/)?chatapps-guide(_zh)?(\.md)?\)|](/guide/chatapps.md)|g' {} +
+find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?(chatapps/)?chatapps-dingtalk-analysis(_zh)?(\.md)?\)|](/guide/chatapps-dingtalk.md)|g' {} +
+find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?(plan/)?technical-plan-draft(_zh)?(\.md)?\)|](/plan/technical-plan.md)|g' {} +
 find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?chatapps-design(_zh)?(\.md)?\)|](/guide/chatapps.md)|g' {} +
 find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?hooks-architecture(_zh)?(\.md)?\)|](/guide/hooks\2.md)|g' {} +
-find docs-site -name "*.md" -type f -exec sed -E -i.bak 's!\]\(\.?/?SECURITY(_zh)?(\.md)?\)!](/guide/security\1.md)!g' {} +
+find docs-site -name "*.md" -type f -exec sed -E -i.bak 's!\]\(\.?/?SECURITY(\.md)?\)!](/guide/security.md)!g' {} +
 find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?migration/migration-guide-v0\.8\.0(_zh)?(\.md)?\)|](/migration/v0.8.0\2.md)|g' {} +
 find docs-site -name "*.md" -type f -exec sed -E -i.bak 's|\]\(\.?/?(docs/)?migration/migration-guide-v0\.9\.0(_zh)?(\.md)?\)|](/migration/v0.9.0\2.md)|g' {} +
 # Fix self-referencing links in migration files themselves

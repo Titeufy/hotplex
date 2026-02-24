@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -12,12 +15,12 @@ import (
 
 	"github.com/hrygo/hotplex"
 	"github.com/hrygo/hotplex/chatapps"
+	"github.com/hrygo/hotplex/chatapps/dingtalk"
 )
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	// Get environment variables
 	addr := os.Getenv("HOTPLEX_CHATAPPS_ADDR")
 	if addr == "" {
 		addr = ":8080"
@@ -27,13 +30,11 @@ func main() {
 		workDir = "/tmp/hotplex-chatapps"
 	}
 
-	// Ensure work directory exists
 	if err := os.MkdirAll(workDir, 0755); err != nil {
 		logger.Error("Failed to create work directory", "error", err, "dir", workDir)
 		os.Exit(1)
 	}
 
-	// Initialize HotPlex Engine
 	engineOpts := hotplex.EngineOptions{
 		Timeout:     10 * time.Minute,
 		IdleTimeout: 5 * time.Minute,
@@ -49,24 +50,62 @@ func main() {
 
 	logger.Info("HotPlex Engine initialized")
 
-	// Create DingTalk adapter
-	adapter := chatapps.NewDingTalkAdapter(chatapps.DingTalkConfig{
+	adapter := dingtalk.NewAdapter(dingtalk.Config{
 		ServerAddr:    addr,
-		MaxMessageLen: 5000, // DingTalk limit
+		MaxMessageLen: 5000,
 	}, logger)
 
-	// Set up message handler that connects to Engine
+	adapter.SetSender(func(ctx context.Context, sessionID string, msg *chatapps.ChatMessage) error {
+		robotCode, _ := msg.Metadata["robot_code"].(string)
+		if robotCode == "" {
+			robotCode = "test"
+		}
+
+		chunks := adapter.ChunkMessage(msg.Content)
+		for i, chunk := range chunks {
+			content := chunk
+			if len(chunks) > 1 {
+				content = fmt.Sprintf("[%d/%d]\n%s", i+1, len(chunks), chunk)
+			}
+
+			payload := map[string]any{
+				"msgtype": "text",
+				"text":    map[string]string{"content": content},
+			}
+
+			token, err := adapter.GetAccessToken()
+			if err != nil {
+				return err
+			}
+
+			body, _ := json.Marshal(payload)
+			url := fmt.Sprintf("https://api.dingtalk.com/v1.0/robot/oToMessages/batchSend?robotCode=%s", robotCode)
+			req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("x-acs-dingtalk-access-token", token)
+
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				return err
+			}
+			defer resp.Body.Close()
+
+			if i < len(chunks)-1 {
+				time.Sleep(200 * time.Millisecond)
+			}
+		}
+		return nil
+	})
+
 	adapter.SetHandler(func(ctx context.Context, msg *chatapps.ChatMessage) error {
 		logger.Info("Received message", "user", msg.UserID, "content", msg.Content[:min(50, len(msg.Content))])
 
-		// Create a unique session for this user
 		userWorkDir := filepath.Join(workDir, msg.UserID)
 		if err := os.MkdirAll(userWorkDir, 0755); err != nil {
 			logger.Error("Failed to create user work dir", "error", err, "user", msg.UserID)
 			return err
 		}
 
-		// Send "thinking" message first
 		thinkingMsg := &chatapps.ChatMessage{
 			Platform:  "dingtalk",
 			SessionID: msg.SessionID,
@@ -77,7 +116,6 @@ func main() {
 			logger.Error("Failed to send thinking message", "error", err)
 		}
 
-		// Execute with HotPlex Engine
 		cfg := &hotplex.Config{
 			WorkDir:          userWorkDir,
 			SessionID:        msg.SessionID,
@@ -88,9 +126,7 @@ func main() {
 		err := engine.Execute(ctx, cfg, msg.Content, func(eventType string, data any) error {
 			switch eventType {
 			case "thinking":
-				// Stream thinking progress
 			case "tool_use":
-				// Tool execution
 			case "answer":
 				responseContent += fmt.Sprintf("%v", data)
 			case "error":
@@ -104,7 +140,6 @@ func main() {
 			responseContent = fmt.Sprintf("❌ 处理失败: %v", err)
 		}
 
-		// Send response
 		responseMsg := &chatapps.ChatMessage{
 			Platform:  "dingtalk",
 			SessionID: msg.SessionID,
@@ -124,7 +159,6 @@ func main() {
 		return nil
 	})
 
-	// Start adapter
 	if err := adapter.Start(context.Background()); err != nil {
 		logger.Error("Failed to start adapter", "error", err)
 		os.Exit(1)
@@ -145,7 +179,6 @@ func main() {
 	adapter.Stop()
 }
 
-// min returns the smaller of x or y
 func min(a, b int) int {
 	if a < b {
 		return a

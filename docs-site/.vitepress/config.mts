@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'HotPlex',
-  description: 'Transforming AI CLI Agents into Production-Ready Interactive Services',
+  description: 'The Strategic Bridge for AI Agent Engineering - Stateful, Secure, and High-Performance.',
   lang: 'en-US',
   base: '/hotplex/',
 
@@ -20,6 +20,7 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'SDKs', link: '/sdks/go-sdk' },
       { text: 'Reference', link: '/reference/api' },
+      { text: 'Plan', link: '/plan/technical-plan' },
       { text: 'Migration', link: '/migration/v0.9.0' },
       { text: 'GitHub', link: 'https://github.com/hrygo/hotplex' }
     ],
@@ -36,34 +37,41 @@ export default defineConfig({
       ],
       '/guide/': [
         {
-          text: 'Guide',
+          text: 'Introduction',
           items: [
             { text: 'Getting Started', link: '/guide/getting-started' },
             { text: 'Quick Start', link: '/guide/quick-start' },
-            { text: 'Architecture', link: '/guide/architecture' },
-            { text: 'Security', link: '/guide/security' }
           ]
         },
         {
-          text: 'Server Mode',
+          text: 'Core Concepts',
+          items: [
+            { text: 'Architecture', link: '/guide/architecture' },
+            { text: 'Security & Isolation', link: '/guide/security' }
+          ]
+        },
+        {
+          text: 'Connectivity',
           items: [
             { text: 'WebSocket Protocol', link: '/guide/websocket' },
-            { text: 'OpenCode HTTP/SSE', link: '/guide/opencode-http' }
+            { text: 'OpenCode HTTP/SSE', link: '/guide/opencode-http' },
+            { text: 'ChatApps Overview', link: '/guide/chatapps' },
+            { text: '└─ DingTalk Deep Dive', link: '/guide/chatapps-dingtalk' }
           ]
         },
         {
-          text: 'Features',
+          text: 'Advanced Features',
           items: [
-            { text: 'Event Hooks', link: '/guide/hooks' },
-            { text: 'Observability', link: '/guide/observability' },
+            { text: 'Event Hooks System', link: '/guide/hooks' },
+            { text: 'Observability (OTel/Prom)', link: '/guide/observability' },
             { text: 'Docker Execution', link: '/guide/docker' }
           ]
         },
         {
-          text: 'Production',
+          text: 'Operations',
           items: [
-            { text: 'Deployment', link: '/guide/deployment' },
-            { text: 'Performance', link: '/guide/performance' }
+            { text: 'Production Deployment', link: '/guide/deployment' },
+            { text: 'Benchmark & Performance', link: '/guide/performance' }
           ]
         }
       ],
@@ -81,9 +89,15 @@ export default defineConfig({
         {
           text: 'Reference',
           items: [
-            { text: 'API Reference', link: '/reference/api' },
-            { text: 'Configuration', link: '/reference/config' },
-            { text: 'Error Codes', link: '/reference/errors' }
+            { text: 'API Reference', link: '/reference/api' }
+          ]
+        }
+      ],
+      '/plan/': [
+        {
+          text: 'Technical Plan',
+          items: [
+            { text: 'Development Plan', link: '/plan/technical-plan' }
           ]
         }
       ]

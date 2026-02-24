@@ -27,7 +27,7 @@ Deep-dive guides for specific AI CLI agents supported by HotPlex.
 - **Aider Integration** (Removed in v0.8.3)
 
 ## 💬 ChatApps Integration
-- **[ChatApps Guide](chatapps-guide.md)**: Architecture design and user manual for chat platform integration.
+- **[ChatApps Guide](chatapps/chatapps-guide.md)**: Architecture design and user manual for chat platform integration.
 
 ## 🛠️ Developer Migration
 - **[Migrating to v0.9.0](migration/migration-guide-v0.9.0.md)** (Latest)

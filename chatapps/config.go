@@ -2,6 +2,7 @@ package chatapps
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -10,37 +11,21 @@ import (
 )
 
 type PlatformConfig struct {
-	Platform         string `yaml:"platform"`
-	SystemPrompt     string `yaml:"system_prompt"`
-	TaskInstructions string `yaml:"task_instructions"`
-
-	// WhatsApp specific (optional)
-	WhatsApp *WhatsAppAdapterConfig `yaml:"whatsapp,omitempty"`
+	Platform         string         `yaml:"platform"`
+	SystemPrompt     string         `yaml:"system_prompt"`
+	TaskInstructions string         `yaml:"task_instructions"`
+	Options          map[string]any `yaml:"options,omitempty"`
 }
 
-// WhatsAppAdapterConfig holds WhatsApp-specific configuration
-type WhatsAppAdapterConfig struct {
-	PhoneNumberID string `yaml:"phone_number_id"`
-	AccessToken   string `yaml:"access_token"`
-	VerifyToken   string `yaml:"verify_token"`
-	ServerAddr    string `yaml:"server_addr"`
-	APIVersion    string `yaml:"api_version"`
-}
+type Logger = slog.Logger
 
 type ConfigLoader struct {
 	configs map[string]*PlatformConfig
 	mu      sync.RWMutex
-	logger  Logger
+	logger  *slog.Logger
 }
 
-type Logger interface {
-	Info(msg string, args ...any)
-	Debug(msg string, args ...any)
-	Error(msg string, args ...any)
-	Warn(msg string, args ...any)
-}
-
-func NewConfigLoader(configDir string, logger Logger) (*ConfigLoader, error) {
+func NewConfigLoader(configDir string, logger *slog.Logger) (*ConfigLoader, error) {
 	loader := &ConfigLoader{
 		configs: make(map[string]*PlatformConfig),
 		logger:  logger,
@@ -143,13 +128,12 @@ func (c *ConfigLoader) Platforms() []string {
 	return platforms
 }
 
-// GetWhatsAppConfig returns the WhatsApp-specific configuration for a platform
-func (c *ConfigLoader) GetWhatsAppConfig(platform string) *WhatsAppAdapterConfig {
+func (c *ConfigLoader) GetOptions(platform string) map[string]any {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	if cfg, ok := c.configs[platform]; ok && cfg.WhatsApp != nil {
-		return cfg.WhatsApp
+	if cfg, ok := c.configs[platform]; ok {
+		return cfg.Options
 	}
 	return nil
 }

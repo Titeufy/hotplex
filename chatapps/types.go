@@ -3,42 +3,36 @@ package chatapps
 import (
 	"context"
 	"time"
+
+	"github.com/hrygo/hotplex/chatapps/base"
 )
 
-// ParseMode defines message formatting mode
-type ParseMode string
+type ParseMode = base.ParseMode
 
 const (
-	ParseModeNone     ParseMode = ""
-	ParseModeMarkdown ParseMode = "markdown" // Telegram: Markdown, Slack: mrkdwn
-	ParseModeHTML     ParseMode = "html"     // Telegram: HTML
+	ParseModeNone     = base.ParseModeNone
+	ParseModeMarkdown = base.ParseModeMarkdown
+	ParseModeHTML     = base.ParseModeHTML
 )
 
-// InlineKeyboardButton represents a button in inline keyboard
+type ChatMessage = base.ChatMessage
+type RichContent = base.RichContent
+type Attachment = base.Attachment
+type ChatAdapter = base.ChatAdapter
+type MessageHandler = base.MessageHandler
+
 type InlineKeyboardButton struct {
 	Text         string `json:"text"`
 	URL          string `json:"url,omitempty"`
 	CallbackData string `json:"callback_data,omitempty"`
 }
 
-// InlineKeyboard represents inline keyboard markup
 type InlineKeyboardMarkup struct {
 	InlineKeyboard [][]InlineKeyboardButton `json:"inline_keyboard"`
 }
 
-// Attachment represents rich content attachments
-type Attachment struct {
-	Type     string `json:"type"`                // image, file, audio
-	URL      string `json:"url"`                 // URL to the content
-	Title    string `json:"title"`               // Optional title
-	Text     string `json:"text"`                // Optional description
-	ThumbURL string `json:"thumb_url,omitempty"` // Thumbnail for images
-}
-
-// SlackBlock represents a Slack Block Kit block
 type SlackBlock map[string]any
 
-// DiscordEmbed represents a Discord embed
 type DiscordEmbed struct {
 	Title       string                 `json:"title,omitempty"`
 	Description string                 `json:"description,omitempty"`
@@ -70,54 +64,21 @@ type DiscordEmbedImage struct {
 	URL string `json:"url"`
 }
 
-// RichContent holds rich message content for advanced platforms
-type RichContent struct {
-	// Formatting
-	ParseMode ParseMode `json:"parse_mode,omitempty"`
-
-	// Telegram specific
-	InlineKeyboard *InlineKeyboardMarkup `json:"inline_keyboard,omitempty"`
-
-	// Slack specific
-	Blocks []SlackBlock `json:"blocks,omitempty"`
-
-	// Discord specific
-	Embeds []DiscordEmbed `json:"embeds,omitempty"`
-
-	// Common attachments
-	Attachments []Attachment `json:"attachments,omitempty"`
-}
-
-type ChatMessage struct {
-	Platform    string
-	SessionID   string
-	UserID      string
-	Content     string
-	MessageID   string
-	Timestamp   time.Time
-	Metadata    map[string]any
-	RichContent *RichContent `json:"rich_content,omitempty"` // Optional rich content
-}
-
-type ChatAdapter interface {
-	Platform() string
-	SystemPrompt() string
-	Start(ctx context.Context) error
-	Stop() error
-	SendMessage(ctx context.Context, sessionID string, msg *ChatMessage) error
-	HandleMessage(ctx context.Context, msg *ChatMessage) error
-}
-
-type MessageHandler func(ctx context.Context, msg *ChatMessage) error
-
-// StreamHandler handles streaming message responses
 type StreamHandler func(ctx context.Context, sessionID string, chunk string, isFinal bool) error
 
-// StreamAdapter extends ChatAdapter for streaming message support
 type StreamAdapter interface {
 	ChatAdapter
-	// SendStreamMessage sends a message and returns a stream handler for updates
 	SendStreamMessage(ctx context.Context, sessionID string, msg *ChatMessage) (StreamHandler, error)
-	// UpdateMessage updates an existing message (for edit support)
 	UpdateMessage(ctx context.Context, sessionID, messageID string, msg *ChatMessage) error
+}
+
+func NewChatMessage(platform, sessionID, userID, content string) *ChatMessage {
+	return &ChatMessage{
+		Platform:  platform,
+		SessionID: sessionID,
+		UserID:    userID,
+		Content:   content,
+		Timestamp: time.Now(),
+		Metadata:  make(map[string]any),
+	}
 }

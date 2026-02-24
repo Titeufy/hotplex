@@ -7,12 +7,13 @@ import (
 	"os"
 
 	"github.com/hrygo/hotplex/chatapps"
+	"github.com/hrygo/hotplex/chatapps/dingtalk"
 )
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	adapter := chatapps.NewDingTalkAdapter(chatapps.DingTalkConfig{
+	adapter := dingtalk.NewAdapter(dingtalk.Config{
 		ServerAddr: ":8080",
 	}, logger)
 

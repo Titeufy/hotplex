@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/hrygo/hotplex/chatapps"
+	"github.com/hrygo/hotplex/chatapps/dingtalk"
 )
 
 func main() {
@@ -19,7 +20,7 @@ func main() {
 		addr = ":8080"
 	}
 
-	adapter := chatapps.NewDingTalkAdapter(chatapps.DingTalkConfig{
+	adapter := dingtalk.NewAdapter(dingtalk.Config{
 		ServerAddr: addr,
 	}, logger)
 
