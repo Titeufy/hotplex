@@ -120,6 +120,8 @@ When looking for where to make changes, follow this map:
   - `security.go`: Shared security config for CORS and API Key authentication.
 - **Types & Events (`types/`, `event/`)**: **[Universal Domain Types]**
   - Defines the "Internal Language" of the system, shared by all layers to avoid data leaks.
+- **Integration Examples (`_examples/`)**:
+  - Multi-language (Go, Node.js, Python) reference implementations for SDK usage, Bot integrations, and lifecycle management.
 
 ---
 
