@@ -1,3 +1,35 @@
+# CHANGELOG.md
+
+## [v0.11.1] - 2026-02-25
+
+### 🐛 Bug Fixes & Slack Feature Enhancements
+
+This patch release includes Slack feature enhancements, cross-platform path parsing fixes, and CI deployment fixes.
+
+### Added
+- **Slack Slash Commands Support**: New slash command handling capability for Slack bot
+- **Slack Reactions Support**: New reaction (emoji) support for Slack messages
+- **Config Validation Enhancements**: Improved configuration validation for Slack integration
+
+### Fixed
+- **Cross-platform work_dir Parsing** ([PR #30](https://github.com/hrygo/hotplex/pull/30)): Resolved work_dir parsing issues across all platforms (Windows, macOS, Linux)
+- **Deploy Docs CI Fix**: Created missing `docs-site/public/assets/` directory before copying assets
+- **Documentation Sync**: Added slack-gap-analysis.md to sync_docs.sh
+
+### Technical Details
+- **Files Changed**: 9 files
+- **Test Coverage**: All tests passing
+
+### Contributors
+- [@hrygo](https://github.com/hrygo)
+
+### Related
+- **PR**: [#30](https://github.com/hrygo/hotplex/pull/30)
+- **Release**: [v0.11.1](https://github.com/hrygo/hotplex/releases/tag/v0.11.1)
+
+---
+
+
 ## [v0.11.0] - 2026-02-25
 
 ### 🔐 Slack 安全增强与可靠性提升
