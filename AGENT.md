@@ -97,15 +97,15 @@ When looking for where to make changes, follow this map:
   - `cmd/hotplexd/`: Entry point for the HotPlex proxy server with `.env` and graceful shutdown logic.
 - **Engine Layer (`engine/`)**:
   - `runner.go`: The `Engine` singleton. Handles session orchestration, event bridging, and I/O multiplexing.
-- **Provider Layer (`provider/`)**:
-  - `provider.go`: `Provider` core interface and configuration structures.
+- **Provider Layer (`provider/`)**: **[Anti-Corruption Layer - Provider]**
+  - `provider.go`: Defines the `Provider` interface. Translates CLI-specific protocols into a normalized SDK format.
   - `factory.go`: Global factory for creating `claude`, `opencode`, and other CLI-based providers.
   - `event.go`: Unified event protocol (`ProviderEventType`) for standardized streaming.
-- **ChatApps Layer (`chatapps/`)**:
-  - `engine_handler.go`: Standardizes AI events into technical keys for cross-platform consumption.
+- **ChatApps Layer (`chatapps/`)**: **[Anti-Corruption Layer - Platform]**
+  - `engine_handler.go`: Translates social platform `ChatMessage` into Engine commands and bridges events back to platforms.
   - `manager.go`: Controls the lifecycle (start/stop) of all bot adapters.
   - `setup.go`: Unified entry point to boot multi-platform bots based on YAML configs.
-  - **Adapters (Social)**: `telegram/`, `discord/`, `slack/`, etc.
+  - **Adapters (Social)**: `telegram/`, `discord/`, `slack/`, etc. (Platform-specific handlers).
   - **Configs**: `configs/*.yaml`
 - **Internal Core (`internal/engine/`)**:
   - `pool.go`: **State Owner**. Manages process hot-multiplexing, GC, and concurrency safety.
@@ -115,11 +115,11 @@ When looking for where to make changes, follow this map:
 - **Internal Systems (`internal/sys/`)**:
   - `proc_unix.go` / `proc_windows.go`: OS-level Process Group (PGID) isolation and signal routing.
 - **Protocol Gateways (`internal/server/`)**:
-  - `hotplex_ws.go`: Native JSON-over-WebSocket protocol.
-  - `opencode_http.go`: OpenCode HTTP/SSE compatibility layer.
+  - `hotplex_ws.go`: Native JSON-over-WebSocket protocol (Public API gateway).
+  - `opencode_http.go`: OpenCode HTTP/SSE compatibility layer (Translation gateway).
   - `security.go`: Shared security config for CORS and API Key authentication.
-- **Types & Events (`types/`, `event/`)**:
-  - Core data models and generic event emission bus.
+- **Types & Events (`types/`, `event/`)**: **[Universal Domain Types]**
+  - Defines the "Internal Language" of the system, shared by all layers to avoid data leaks.
 
 ---
 
