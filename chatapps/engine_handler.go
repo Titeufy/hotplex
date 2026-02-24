@@ -93,7 +93,8 @@ type StreamCallback struct {
 	logger    *slog.Logger
 	mu        sync.Mutex
 	isFirst   bool
-	metadata  map[string]any // Original message metadata (channel_id, thread_ts, etc.)
+	metadata  map[string]any  // Original message metadata (channel_id, thread_ts, etc.)
+	processor *ProcessorChain // Message processor chain
 }
 
 // NewStreamCallback creates a new StreamCallback
@@ -106,6 +107,7 @@ func NewStreamCallback(ctx context.Context, sessionID, platform string, adapters
 		logger:    logger,
 		isFirst:   true,
 		metadata:  metadata,
+		processor: NewDefaultProcessorChain(logger),
 	}
 }
 
@@ -259,7 +261,26 @@ func (c *StreamCallback) sendMessage(content string, eventType string) error {
 		Metadata:  metadata,
 	}
 
-	return c.adapters.SendMessage(c.ctx, c.platform, c.sessionID, msg)
+	// Process message through processor chain
+	processedMsg, err := c.processor.Process(c.ctx, msg)
+	if err != nil {
+		c.logger.Error("Message processing failed",
+			"platform", c.platform,
+			"session_id", c.sessionID,
+			"error", err)
+		// Continue with original message if processing fails
+		processedMsg = msg
+	}
+
+	// Skip sending if processor returned nil (message dropped)
+	if processedMsg == nil {
+		c.logger.Debug("Message dropped by processor",
+			"platform", c.platform,
+			"session_id", c.sessionID)
+		return nil
+	}
+
+	return c.adapters.SendMessage(c.ctx, c.platform, c.sessionID, processedMsg)
 }
 
 // EngineMessageHandler implements MessageHandler and integrates with Engine
@@ -315,7 +336,7 @@ func WithConfigLoader(loader *ConfigLoader) EngineMessageHandlerOption {
 	}
 }
 
-// Handle implements MessageHandler
+// Handle implements EngineMessageHandler
 func (h *EngineMessageHandler) Handle(ctx context.Context, msg *ChatMessage) error {
 	// Determine work directory
 	workDir := ""
