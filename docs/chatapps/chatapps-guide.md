@@ -241,9 +241,6 @@ A: 请检查：
 ---
 
 ## 相关资源
-- [Hooks 事件系统](../hooks-architecture.md)
-- [服务器 API 指南](../server/api.md)
-- [SDK 快速集成](../sdk-guide.md)
 - [Slack 适配器用户手册](./chatapps-slack.md) - 完整的 Slack 配置与部署指南
-- [Slack 技术分析](./chatapps-slack-analysis.md) - 深入的技术实现分析
+- [  - [Slack 差距分析报告](./slack-gap-analysis.md)
 - [钉钉双向通讯技术方案](./chatapps-dingtalk-analysis.md)
