@@ -21,16 +21,18 @@ type SocketModeConfig struct {
 
 // SocketModeConnection manages a WebSocket connection to Slack's Socket Mode
 type SocketModeConnection struct {
-	mu            sync.RWMutex
-	conn          *websocket.Conn
-	config        SocketModeConfig
-	logger        *slog.Logger
-	ctx           context.Context
-	cancel        context.CancelFunc
-	reconnects    int
-	maxReconnects int
-	connected     bool
-	handlers      map[string]EventHandler
+	mu              sync.RWMutex
+	conn            *websocket.Conn
+	config          SocketModeConfig
+	logger          *slog.Logger
+	ctx             context.Context
+	cancel          context.CancelFunc
+	reconnects      int
+	maxReconnects   int
+	connected       bool
+	handlers        map[string]EventHandler
+	onReconnect     func()      // Called when successfully reconnected
+	onReconnectFail func(error) // Called when reconnection fails
 }
 
 // EventHandler handles incoming Slack events
@@ -58,6 +60,14 @@ func (s *SocketModeConnection) RegisterHandler(eventType string, handler EventHa
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.handlers[eventType] = handler
+}
+
+// SetReconnectCallbacks sets callbacks for reconnection events
+func (s *SocketModeConnection) SetReconnectCallbacks(onReconnect func(), onReconnectFail func(error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.onReconnect = onReconnect
+	s.onReconnectFail = onReconnectFail
 }
 
 // Start begins the Socket Mode connection
@@ -182,34 +192,59 @@ func (s *SocketModeConnection) getWebSocketURL() (string, error) {
 	return result.URL, nil
 }
 
-// reconnect attempts to reconnect with exponential backoff
+// reconnect attempts to reconnect with permanent retry and exponential backoff
+// This implements the fix for issue #33 - Slack Socket Mode connection recovery
 func (s *SocketModeConnection) reconnect() {
 	s.mu.Lock()
 	s.reconnects++
 	reconnectCount := s.reconnects
+	onReconnect := s.onReconnect
+	onReconnectFail := s.onReconnectFail
 	s.mu.Unlock()
 
-	if reconnectCount > s.maxReconnects {
-		s.logger.Error("Max reconnection attempts reached")
+	s.logger.Info("Starting reconnection process", "attempt", reconnectCount)
+
+	// Permanent retry loop with exponential backoff
+	for {
+		select {
+		case <-s.ctx.Done():
+			s.logger.Info("Reconnection cancelled via context")
+			return
+		default:
+		}
+
+		// Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s (max 30s)
+		delay := time.Duration(1<<uint(reconnectCount-1)) * time.Second
+		if delay > 30*time.Second {
+			delay = 30 * time.Second
+		}
+
+		s.logger.Info("Attempting to reconnect", "attempt", reconnectCount, "delay", delay)
+
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-time.After(delay):
+		}
+
+		if err := s.connect(); err != nil {
+			s.logger.Error("Reconnection failed", "error", err, "attempt", reconnectCount)
+			// Notify adapter layer about reconnection failure
+			if onReconnectFail != nil {
+				onReconnectFail(err)
+			}
+			reconnectCount++
+			continue // Keep retrying - this is the key fix for issue #33
+		}
+
+		// Successfully reconnected
+		s.logger.Info("Reconnection successful")
+
+		// Notify adapter layer about successful reconnection
+		if onReconnect != nil {
+			onReconnect()
+		}
 		return
-	}
-
-	// Exponential backoff: 1s, 2s, 4s, 8s, 16s
-	delay := time.Duration(1<<uint(reconnectCount-1)) * time.Second
-	if delay > 30*time.Second {
-		delay = 30 * time.Second
-	}
-
-	s.logger.Info("Attempting to reconnect", "attempt", reconnectCount, "delay", delay)
-
-	select {
-	case <-s.ctx.Done():
-		return
-	case <-time.After(delay):
-	}
-
-	if err := s.connect(); err != nil {
-		s.logger.Error("Reconnection failed", "error", err)
 	}
 }
 
