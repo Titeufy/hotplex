@@ -527,6 +527,21 @@ func (r *Engine) dispatchNormalizedCallback(pevt *provider.ProviderEvent, callba
 	case provider.EventTypeError:
 		return callback("error", pevt.Error)
 
+	case provider.EventTypePermissionRequest:
+		// Permission request from Claude Code - route to callback for Slack display
+		r.logger.Info("[RUNNER] Permission request received",
+			"session_id", pevt.SessionID,
+			"tool_name", pevt.ToolName,
+			"content_len", len(pevt.Content))
+		meta := &event.EventMeta{
+			ToolName:        pevt.ToolName,
+			ToolID:          pevt.ToolID, // Contains message_id for correlation
+			Status:          "pending",
+			TotalDurationMs: totalDur,
+		}
+		// Pass the raw JSON for full permission data access
+		return callback("permission_request", event.NewEventWithMeta("permission_request", pevt.RawLine, meta))
+
 	default:
 		// Fallback for other event types
 		if pevt.Content != "" {

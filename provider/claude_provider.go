@@ -336,6 +336,35 @@ func (p *ClaudeCodeProvider) ParseEvent(line string) (*ProviderEvent, error) {
 			}
 		}
 
+	case "permission_request":
+		event.Type = EventTypePermissionRequest
+		event.SessionID = msg.SessionID
+		// Store permission info in existing fields
+		if msg.Permission != nil {
+			event.ToolName = msg.Permission.Name
+			event.Content = msg.Permission.Input
+		}
+		if msg.Decision != nil {
+			// Use ToolID to store message_id for correlation
+			event.ToolID = msg.MessageID
+			// Prepend decision reason to content if available
+			if msg.Decision.Reason != "" {
+				if event.Content != "" {
+					event.Content = msg.Decision.Reason + "\n" + event.Content
+				} else {
+					event.Content = msg.Decision.Reason
+				}
+			}
+		}
+		// Store raw line for full permission data access
+		event.RawLine = line
+		p.logger.Info("[PROVIDER] Permission request received",
+			"session_id", msg.SessionID,
+			"message_id", msg.MessageID,
+			"tool_name", event.ToolName,
+			"has_permission", msg.Permission != nil,
+			"has_decision", msg.Decision != nil)
+
 	default:
 		// Unknown type, try to extract text content
 		event.Type = EventTypeAnswer
