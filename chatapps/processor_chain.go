@@ -135,9 +135,10 @@ func NewDefaultProcessorChain(logger *slog.Logger) *ProcessorChain {
 	})
 
 	aggregator := NewMessageAggregatorProcessor(logger, MessageAggregatorProcessorOptions{
-		Window:     100 * time.Millisecond,
-		MinContent: 200,
+		Window:     500 * time.Millisecond, // 500ms window for tool_use aggregation
+		MinContent: 50,                     // Lower threshold for short tool inputs
 	})
+
 
 	richContent := NewRichContentProcessor(logger)
 

@@ -22,16 +22,17 @@ type EventConfig struct {
 	SameTypeOnly bool // Only aggregate with same event type
 	Immediate    bool // Send immediately, skip aggregation
 	UseUpdate    bool // Use chat.update for streaming updates
+	MinContent   int  // Minimum content length to skip aggregation (0 = use global default)
 }
 
 // defaultEventConfig defines default aggregation behavior for each event type
 var defaultEventConfig = map[string]EventConfig{
-	"thinking":      {Aggregate: false, Immediate: true},                     // Show immediately, will be replaced by content
-	"tool_use":      {Aggregate: true, SameTypeOnly: true, Immediate: false}, // Aggregate same type only
-	"tool_result":   {Aggregate: true, SameTypeOnly: true, Immediate: false}, // Aggregate same type only
-	"answer":        {Aggregate: true, UseUpdate: true, Immediate: false},    // Stream with chat.update
-	"error":         {Aggregate: false, Immediate: true},                     // Show immediately
-	"session_stats": {Aggregate: false, Immediate: true},                     // Show immediately
+	"thinking":      {Aggregate: false, Immediate: true},                           // Show immediately, will be replaced by content
+	"tool_use":      {Aggregate: true, SameTypeOnly: true, Immediate: false, MinContent: 50}, // Aggregate same type only, lower threshold
+	"tool_result":   {Aggregate: true, SameTypeOnly: true, Immediate: false},       // Aggregate same type only
+	"answer":        {Aggregate: true, UseUpdate: true, Immediate: false},          // Stream with chat.update
+	"error":         {Aggregate: false, Immediate: true},                           // Show immediately
+	"session_stats": {Aggregate: false, Immediate: true},                           // Show immediately
 }
 
 // MessageAggregatorProcessor aggregates multiple rapid messages into one
@@ -180,6 +181,14 @@ func (p *MessageAggregatorProcessor) Process(ctx context.Context, msg *base.Chat
 	}
 
 	// Check content length - send immediately if long enough
+	// Use event-type specific MinContent if set, otherwise use global default
+	minContent := p.minContent
+	if eventConfig.MinContent > 0 {
+		minContent = eventConfig.MinContent
+	}
+	if len(msg.Content) >= minContent {
+		return msg, nil
+	}
 	if len(msg.Content) >= p.minContent {
 		return msg, nil
 	}
