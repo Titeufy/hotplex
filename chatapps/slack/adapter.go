@@ -402,6 +402,17 @@ func (a *Adapter) handleEventCallback(ctx context.Context, eventData json.RawMes
 		return
 	}
 
+	// Structured logging for Slack HTTP webhook message
+	a.Logger().Info("[SLACK_HTTP_WEBHOOK] HTTP webhook event received",
+		"event_type", msgEvent.Type,
+		"channel", msgEvent.Channel,
+		"channel_type", msgEvent.ChannelType,
+		"user", msgEvent.User,
+		"text", msgEvent.Text,
+		"ts", msgEvent.TS,
+		"thread_ts", msgEvent.ThreadTS,
+		"subtype", msgEvent.SubType)
+
 	// Skip bot messages
 	if msgEvent.BotID != "" || msgEvent.User == a.config.BotUserID {
 		a.Logger().Debug("Skipping bot message", "bot_id", msgEvent.BotID)
@@ -445,17 +456,21 @@ func (a *Adapter) handleEventCallback(ctx context.Context, eventData json.RawMes
 		}
 	}
 
-	// Mark user as paired for DM policy
-	if msgEvent.ChannelType == "dm" {
-		a.config.MarkPaired(msgEvent.User)
+	// Convert #<command> prefix to /<command> for thread support
+	// Slack threads don't support slash commands, so we allow #reset, #dc, etc.
+	processedText := msgEvent.Text
+	if converted, ok := convertHashPrefixToSlash(msgEvent.Text); ok {
+		processedText = converted
+		a.Logger().Debug("Converted # prefix to / prefix", "original", msgEvent.Text, "converted", converted)
 	}
+
 	sessionID := a.GetOrCreateSession(msgEvent.User, msgEvent.BotUserID, msgEvent.Channel)
 
 	msg := &base.ChatMessage{
 		Platform:  "slack",
 		SessionID: sessionID,
 		UserID:    msgEvent.User,
-		Content:   msgEvent.Text,
+		Content:   processedText,
 		MessageID: msgEvent.TS,
 		Timestamp: time.Now(),
 		Metadata: map[string]any{
@@ -464,15 +479,11 @@ func (a *Adapter) handleEventCallback(ctx context.Context, eventData json.RawMes
 		},
 	}
 
-	// Add thread info if present
-	if msgEvent.ThreadTS != "" {
-		msg.Metadata["thread_ts"] = msgEvent.ThreadTS
+	// If converted from # prefix, mark it for special handling
+	if processedText != msgEvent.Text {
+		msg.Metadata["converted_from_hash"] = true
 	}
-
-	// Add subtype info for downstream processing
-	if msgEvent.SubType != "" {
-		msg.Metadata["subtype"] = msgEvent.SubType
-	}
+	msg.Metadata["original_text"] = msgEvent.Text
 
 	a.webhook.Run(ctx, a.Handler(), msg)
 }
@@ -509,7 +520,9 @@ func (a *Adapter) Start(ctx context.Context) error {
 
 // handleSocketModeEvent handles incoming events from Socket Mode
 func (a *Adapter) handleSocketModeEvent(eventType string, data json.RawMessage) {
-	a.Logger().Debug("Socket Mode event received", "type", eventType)
+	a.Logger().Info("[SLACK_SOCKET_MODE] Socket Mode event received",
+		"event_type", eventType,
+		"data_len", len(data))
 
 	var msgEvent MessageEvent
 	if err := json.Unmarshal(data, &msgEvent); err != nil {
@@ -555,17 +568,21 @@ func (a *Adapter) handleSocketModeEvent(eventType string, data json.RawMessage) 
 		}
 	}
 
-	// Mark user as paired for DM policy
-	if msgEvent.ChannelType == "dm" {
-		a.config.MarkPaired(msgEvent.User)
+	// Convert #<command> prefix to /<command> for thread support
+	// Slack threads don't support slash commands, so we allow #reset, #dc, etc.
+	processedText := msgEvent.Text
+	if converted, ok := convertHashPrefixToSlash(msgEvent.Text); ok {
+		processedText = converted
+		a.Logger().Debug("Converted # prefix to / prefix", "original", msgEvent.Text, "converted", converted)
 	}
+
 	sessionID := a.GetOrCreateSession(msgEvent.User, msgEvent.BotUserID, msgEvent.Channel)
 
 	msg := &base.ChatMessage{
 		Platform:  "slack",
 		SessionID: sessionID,
 		UserID:    msgEvent.User,
-		Content:   msgEvent.Text,
+		Content:   processedText,
 		MessageID: msgEvent.TS,
 		Timestamp: time.Now(),
 		Metadata: map[string]any{
@@ -574,15 +591,11 @@ func (a *Adapter) handleSocketModeEvent(eventType string, data json.RawMessage) 
 		},
 	}
 
-	// Add thread info if present
-	if msgEvent.ThreadTS != "" {
-		msg.Metadata["thread_ts"] = msgEvent.ThreadTS
+	// If converted from # prefix, mark it for special handling
+	if processedText != msgEvent.Text {
+		msg.Metadata["converted_from_hash"] = true
 	}
-
-	// Add subtype info for downstream processing
-	if msgEvent.SubType != "" {
-		msg.Metadata["subtype"] = msgEvent.SubType
-	}
+	msg.Metadata["original_text"] = msgEvent.Text
 
 	handler := a.Handler()
 	if handler == nil {
@@ -641,8 +654,6 @@ func (a *Adapter) handleInteractive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = r.Body.Close() }()
-
-	a.Logger().Debug("Interactive payload received", "body", string(body))
 
 	// Parse the payload
 	payload := r.FormValue("payload")
@@ -1234,4 +1245,55 @@ func (a *Adapter) UpdateMessage(ctx context.Context, channelID, messageTS string
 
 	a.Logger().Debug("Message updated successfully", "channel", channelID, "ts", slackResp.TS)
 	return nil
+}
+
+
+// SUPPORTED_COMMANDS lists all slash commands supported by the system.
+// Used for matching #<command> prefix in messages (thread support).
+var SUPPORTED_COMMANDS = []string{"/reset", "/dc"}
+
+
+// isSupportedCommand checks if a command (with / prefix) is in the supported commands list.
+func isSupportedCommand(cmd string) bool {
+	for _, supported := range SUPPORTED_COMMANDS {
+		if supported == cmd {
+			return true
+		}
+	}
+	return false
+}
+
+// convertHashPrefixToSlash checks if the message starts with #<command>
+// and converts it to /<command> if the command is supported.
+// Returns the converted text and true if conversion happened,
+// otherwise returns original text and false.
+func convertHashPrefixToSlash(text string) (string, bool) {
+	if !strings.HasPrefix(text, "#") {
+		return text, false
+	}
+
+	// Extract potential command: #reset ... -> /reset ...
+	// Find first space or use entire remaining text
+	rest := text[1:] // Remove # prefix
+	if rest == "" {
+		return text, false
+	}
+
+	// Find command boundary (first space or end)
+	firstSpace := strings.Index(rest, " ")
+	var potentialCmd string
+	if firstSpace == -1 {
+		potentialCmd = rest
+	} else {
+		potentialCmd = rest[:firstSpace]
+	}
+
+	// Add / prefix and check if supported
+	cmdWithSlash := "/" + potentialCmd
+	if isSupportedCommand(cmdWithSlash) {
+		// Replace # with / in the original text
+		return "/" + rest, true
+	}
+
+	return text, false
 }

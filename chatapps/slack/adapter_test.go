@@ -910,3 +910,68 @@ func TestIntegration_InteractiveEndpoint(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}
 }
+
+
+// TestConvertHashPrefixToSlash tests the #<command> to /<command> conversion
+func TestConvertHashPrefixToSlash(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		expectedText string
+		expectedOk   bool
+	}{
+		// Supported commands
+		{"reset command", "#reset", "/reset", true},
+		{"reset with text", "#reset hello", "/reset hello", true},
+		{"dc command", "#dc", "/dc", true},
+		{"dc with text", "#dc reason", "/dc reason", true},
+		// Not supported commands
+		{"unknown command", "#unknown", "#unknown", false},
+		{"partial match reset", "#resetx", "#resetx", false},
+		{"partial match dco", "#dco", "#dco", false},
+		// Not commands
+		{"no hash prefix", "reset", "reset", false},
+		{"normal message", "hello world", "hello world", false},
+		{"empty string", "", "", false},
+		{"hash only", "#", "#", false},
+		{"hash with space", "# ", "# ", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, ok := convertHashPrefixToSlash(tt.input)
+			if result != tt.expectedText {
+				t.Errorf("convertHashPrefixToSlash(%q) = %q, want %q", tt.input, result, tt.expectedText)
+			}
+			if ok != tt.expectedOk {
+				t.Errorf("convertHashPrefixToSlash(%q) ok = %v, want %v", tt.input, ok, tt.expectedOk)
+			}
+		})
+	}
+}
+
+// TestIsSupportedCommand tests command validation
+func TestIsSupportedCommand(t *testing.T) {
+	tests := []struct {
+		name     string
+		command  string
+		expected bool
+	}{
+		// Supported commands
+		{"reset", "/reset", true},
+		{"dc", "/dc", true},
+		// Not supported commands
+		{"unknown", "/unknown", false},
+		{"empty", "", false},
+		{"no slash", "reset", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isSupportedCommand(tt.command)
+			if result != tt.expected {
+				t.Errorf("isSupportedCommand(%q) = %v, want %v", tt.command, result, tt.expected)
+			}
+		})
+	}
+}
