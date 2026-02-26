@@ -178,7 +178,7 @@ claude -p "删除 temp 目录" \
 - ❌ 缺失的功能项
 - 💡 实现建议和代码示例
 
-完整报告见：[`docs/verification/claude-features-verification-report.md`](./claude-features-verification-report.md)
+完整报告见：运行验证脚本后，会在控制台输出验证结果。详细报告请查看 `docs/verification/` 目录下的相关文档。
 
 ---
 
