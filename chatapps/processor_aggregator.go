@@ -27,12 +27,12 @@ type EventConfig struct {
 
 // defaultEventConfig defines default aggregation behavior for each event type
 var defaultEventConfig = map[string]EventConfig{
-	"thinking":      {Aggregate: false, Immediate: true},                           // Show immediately, will be replaced by content
+	"thinking":      {Aggregate: false, Immediate: true},                                     // Show immediately, will be replaced by content
 	"tool_use":      {Aggregate: true, SameTypeOnly: true, Immediate: false, MinContent: 50}, // Aggregate same type only, lower threshold
-	"tool_result":   {Aggregate: true, SameTypeOnly: true, Immediate: false},       // Aggregate same type only
-	"answer":        {Aggregate: true, UseUpdate: true, Immediate: false},          // Stream with chat.update
-	"error":         {Aggregate: false, Immediate: true},                           // Show immediately
-	"session_stats": {Aggregate: false, Immediate: true},                           // Show immediately
+	"tool_result":   {Aggregate: true, SameTypeOnly: true, Immediate: false},                 // Aggregate same type only
+	"answer":        {Aggregate: true, UseUpdate: true, Immediate: false},                    // Stream with chat.update
+	"error":         {Aggregate: false, Immediate: true},                                     // Show immediately
+	"session_stats": {Aggregate: false, Immediate: true},                                     // Show immediately
 }
 
 // MessageAggregatorProcessor aggregates multiple rapid messages into one

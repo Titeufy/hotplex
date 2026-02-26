@@ -139,7 +139,6 @@ func NewDefaultProcessorChain(logger *slog.Logger) *ProcessorChain {
 		MinContent: 50,                     // Lower threshold for short tool inputs
 	})
 
-
 	richContent := NewRichContentProcessor(logger)
 
 	formatConv := NewFormatConversionProcessor(logger)
