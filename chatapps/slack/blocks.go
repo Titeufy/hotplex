@@ -316,15 +316,13 @@ func BuildPlanItem(text string, itemType string) map[string]any {
 
 	// Validate item type
 	safeType := itemType
-	if itemType != "" {
-		validTypes := map[string]bool{
-			"task":    true,
-			"note":    true,
-			"warning": true,
-		}
-		if !validTypes[itemType] {
-			safeType = "task" // Default to task
-		}
+	validTypes := map[string]bool{
+		"task":    true,
+		"note":    true,
+		"warning": true,
+	}
+	if itemType == "" || !validTypes[itemType] {
+		safeType = "task" // Default to task for empty or invalid types
 	}
 
 	return map[string]any{
