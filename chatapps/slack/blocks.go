@@ -223,7 +223,7 @@ func BuildActionsBlock(elements []map[string]any) []map[string]any {
 // Reference: https://api.slack.com/reference/block-kit/blocks#call
 func BuildCallBlock(callID string) []map[string]any {
 	return []map[string]any{{
-		"type":   "call",
+		"type":    "call",
 		"call_id": callID,
 	}}
 }
@@ -254,13 +254,13 @@ func BuildPlanBlock(title string, sections []map[string]any) []map[string]any {
 	if utf8.RuneCountInString(safeTitle) > MaxPlainTextLen {
 		safeTitle = TruncateByRune(safeTitle, MaxPlainTextLen-3) + "..."
 	}
-	
+
 	// Initialize sections if nil
 	safeSections := sections
 	if safeSections == nil {
 		safeSections = []map[string]any{}
 	}
-	
+
 	block := map[string]any{
 		"type":     "plan",
 		"title":    plainText(safeTitle),
@@ -276,13 +276,13 @@ func BuildPlanSection(sectionTitle string, items []map[string]any, status string
 	if utf8.RuneCountInString(safeTitle) > MaxPlainTextLen {
 		safeTitle = TruncateByRune(safeTitle, MaxPlainTextLen-3) + "..."
 	}
-	
+
 	// Limit items to 50 per section
 	safeItems := items
 	if len(safeItems) > 50 {
 		safeItems = safeItems[:50]
 	}
-	
+
 	// Validate status if provided
 	safeStatus := ""
 	if status != "" {
@@ -295,7 +295,7 @@ func BuildPlanSection(sectionTitle string, items []map[string]any, status string
 			safeStatus = status
 		}
 	}
-	
+
 	section := map[string]any{
 		"title": plainText(safeTitle),
 		"items": safeItems,
@@ -313,7 +313,7 @@ func BuildPlanItem(text string, itemType string) map[string]any {
 	if utf8.RuneCountInString(safeText) > MaxPlainTextLen {
 		safeText = TruncateByRune(safeText, MaxPlainTextLen-3) + "..."
 	}
-	
+
 	// Validate item type
 	safeType := itemType
 	if itemType != "" {
@@ -326,7 +326,7 @@ func BuildPlanItem(text string, itemType string) map[string]any {
 			safeType = "task" // Default to task
 		}
 	}
-	
+
 	return map[string]any{
 		"text": plainText(safeText),
 		"type": safeType,
@@ -339,7 +339,7 @@ func BuildTableBlock(headers []string, rows [][]string, columns int) []map[strin
 	block := map[string]any{
 		"type": "table",
 	}
-	
+
 	// Build header row
 	if len(headers) > 0 {
 		headerCells := make([]map[string]any, len(headers))
@@ -351,7 +351,7 @@ func BuildTableBlock(headers []string, rows [][]string, columns int) []map[strin
 		}
 		block["rows"] = []map[string]any{{"cells": headerCells}}
 	}
-	
+
 	// Build data rows
 	tableRows := make([]map[string]any, len(rows))
 	for i, row := range rows {
@@ -364,7 +364,7 @@ func BuildTableBlock(headers []string, rows [][]string, columns int) []map[strin
 		}
 		tableRows[i] = map[string]any{"cells": cells}
 	}
-	
+
 	if len(rows) > 0 {
 		if existingRows, ok := block["rows"].([]map[string]any); ok {
 			block["rows"] = append(existingRows, tableRows...)
@@ -373,12 +373,12 @@ func BuildTableBlock(headers []string, rows [][]string, columns int) []map[strin
 			block["rows"] = tableRows
 		}
 	}
-	
+
 	// Set column count
 	if columns > 0 {
 		block["columns"] = columns
 	}
-	
+
 	return []map[string]any{block}
 }
 
@@ -390,13 +390,13 @@ func BuildTaskCardBlock(title, description, assignee, dueDate, status string, ac
 	if utf8.RuneCountInString(safeTitle) > MaxPlainTextLen {
 		safeTitle = TruncateByRune(safeTitle, MaxPlainTextLen-3) + "..."
 	}
-	
+
 	// Validate and truncate description
 	safeDescription := description
 	if utf8.RuneCountInString(safeDescription) > MaxSectionTextLen {
 		safeDescription = TruncateByRune(safeDescription, MaxSectionTextLen-3) + "..."
 	}
-	
+
 	// Validate status
 	validStatuses := map[string]bool{
 		"pending":     true,
@@ -407,20 +407,20 @@ func BuildTaskCardBlock(title, description, assignee, dueDate, status string, ac
 	if validStatuses[status] {
 		safeStatus = status
 	}
-	
+
 	// Limit actions to 25
 	safeActions := actions
 	if len(safeActions) > 25 {
 		safeActions = safeActions[:25]
 	}
-	
+
 	block := map[string]any{
 		"type":        "task_card",
 		"title":       plainText(safeTitle),
 		"description": mrkdwnText(safeDescription),
 		"status":      safeStatus,
 	}
-	
+
 	if assignee != "" {
 		block["assignee"] = assignee
 	}
@@ -430,7 +430,7 @@ func BuildTaskCardBlock(title, description, assignee, dueDate, status string, ac
 	if len(safeActions) > 0 {
 		block["actions"] = safeActions
 	}
-	
+
 	return []map[string]any{block}
 }
 
@@ -447,12 +447,12 @@ func BuildContextActionsBlock(contextItems []map[string]any, actions []map[strin
 // BuildAdvancedLayout creates a complex layout using section/fields combinations
 func BuildAdvancedLayout(title string, fields map[string]string, footer string) []map[string]any {
 	var blocks []map[string]any
-	
+
 	// Add header if provided
 	if title != "" {
 		blocks = append(blocks, BuildHeaderBlock(title)...)
 	}
-	
+
 	// Build fields for section
 	if len(fields) > 0 {
 		fieldBlocks := make([]map[string]any, 0, len(fields))
@@ -461,11 +461,11 @@ func BuildAdvancedLayout(title string, fields map[string]string, footer string) 
 		}
 		blocks = append(blocks, BuildSectionBlockWithFields(fieldBlocks)...)
 	}
-	
+
 	// Add footer/context
 	if footer != "" {
 		blocks = append(blocks, BuildContextBlock([]map[string]any{mrkdwnText(footer)})...)
 	}
-	
+
 	return blocks
 }

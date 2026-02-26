@@ -35,8 +35,8 @@ func BuildOptionGroup(label string, options []map[string]any) map[string]any {
 // Reference: https://api.slack.com/reference/block-kit/composition-objects#confirm
 func BuildConfirmationDialog(title, text, confirmText, denyText string) map[string]any {
 	return map[string]any{
-		"title":  plainText(title),
-		"text":   plainText(text),
+		"title":   plainText(title),
+		"text":    plainText(text),
 		"confirm": plainText(confirmText),
 		"deny":    plainText(denyText),
 	}
@@ -152,7 +152,7 @@ func BuildLink(text, url string) map[string]any {
 // BuildUserMention creates a user mention for rich_text_section
 func BuildUserMention(userID string) map[string]any {
 	return map[string]any{
-		"type": "user",
+		"type":    "user",
 		"user_id": userID,
 	}
 }
@@ -160,7 +160,7 @@ func BuildUserMention(userID string) map[string]any {
 // BuildChannelMention creates a channel mention for rich_text_section
 func BuildChannelMention(channelID string) map[string]any {
 	return map[string]any{
-		"type": "channel",
+		"type":       "channel",
 		"channel_id": channelID,
 	}
 }
@@ -182,7 +182,7 @@ func BuildEmoji(name string) map[string]any {
 // BuildTriggerObject creates a trigger composition object
 func BuildTriggerObject(interactiveTrigger string) map[string]any {
 	return map[string]any{
-		"type": "trigger",
+		"type":                "trigger",
 		"interactive_trigger": interactiveTrigger,
 	}
 }
@@ -276,7 +276,7 @@ func BuildAccessibilityLabel(label string) map[string]any {
 // BuildDeliveryPolicy creates a delivery policy for messages
 func BuildDeliveryPolicy(persistence string) map[string]any {
 	return map[string]any{
-		"type": "delivery_policy",
+		"type":        "delivery_policy",
 		"persistence": persistence, // "default", "ephemeral"
 	}
 }

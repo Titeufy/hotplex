@@ -9,15 +9,15 @@ import (
 
 // Slack Block Kit character limits (from official documentation)
 const (
-	MaxSectionTextLen   = 3000
-	MaxBlocksLen        = 50
-	MaxModalBlocksLen   = 100
-	MaxFieldTextLen     = 2000
-	MaxBlockIDLen       = 255
-	MaxMarkdownBlockLen = 12000
-	MaxPlainTextLen     = 150
+	MaxSectionTextLen    = 3000
+	MaxBlocksLen         = 50
+	MaxModalBlocksLen    = 100
+	MaxFieldTextLen      = 2000
+	MaxBlockIDLen        = 255
+	MaxMarkdownBlockLen  = 12000
+	MaxPlainTextLen      = 150
 	MaxButtonActionIDLen = 255
-	MaxButtonTextLen    = 75
+	MaxButtonTextLen     = 75
 )
 
 // ValidationError represents a block validation error
@@ -494,7 +494,7 @@ func ValidateFileInput(element map[string]any) error {
 	if !ok || elemType != "file_input" {
 		return fmt.Errorf("invalid file_input: missing or incorrect type field")
 	}
-	
+
 	// Validate max_files
 	maxFiles, ok := element["max_files"].(int)
 	if ok {
@@ -505,14 +505,14 @@ func ValidateFileInput(element map[string]any) error {
 			return fmt.Errorf("file_input max_files cannot exceed 10")
 		}
 	}
-	
+
 	// Validate filetypes
 	filetypes, ok := element["filetypes"].([]string)
 	if ok {
 		if len(filetypes) > 10 {
 			return fmt.Errorf("file_input cannot have more than 10 filetypes")
 		}
-		
+
 		// Validate each filetype against allowed list
 		for i, ft := range filetypes {
 			ft = strings.ToLower(strings.TrimPrefix(ft, "."))
@@ -521,7 +521,7 @@ func ValidateFileInput(element map[string]any) error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -541,16 +541,16 @@ func ValidateTableBlock(block map[string]any) error {
 	if !ok {
 		return fmt.Errorf("table block must have rows")
 	}
-	
+
 	if len(rows) > 1000 {
 		return fmt.Errorf("table block cannot have more than 1000 rows")
 	}
-	
+
 	columns, ok := block["columns"].(int)
 	if ok && columns > 12 {
 		return fmt.Errorf("table block cannot have more than 12 columns")
 	}
-	
+
 	return nil
 }
 
@@ -560,11 +560,11 @@ func ValidatePlanBlock(block map[string]any) error {
 	if !ok {
 		return fmt.Errorf("plan block must have sections")
 	}
-	
+
 	if len(sections) > 25 {
 		return fmt.Errorf("plan block cannot have more than 25 sections")
 	}
-	
+
 	return nil
 }
 
@@ -574,15 +574,15 @@ func ValidateTaskCardBlock(block map[string]any) error {
 	status, ok := block["status"].(string)
 	if ok {
 		validStatuses := map[string]bool{
-			"pending": true,
+			"pending":     true,
 			"in_progress": true,
-			"completed": true,
+			"completed":   true,
 		}
 		if !validStatuses[status] {
 			return fmt.Errorf("task_card status must be pending, in_progress, or completed")
 		}
 	}
-	
+
 	return nil
 }
 
@@ -592,7 +592,7 @@ func ValidateComplete(block map[string]any) error {
 	if !ok {
 		return fmt.Errorf("block must have type")
 	}
-	
+
 	// Type-specific complete validation
 	switch blockType {
 	case "button":
@@ -608,7 +608,7 @@ func ValidateComplete(block map[string]any) error {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -622,7 +622,7 @@ func ValidateButtonComplete(button map[string]any) error {
 	if err := ValidateTextObject(text); err != nil {
 		return err
 	}
-	
+
 	// Validate action_id
 	actionID, ok := button["action_id"].(string)
 	if !ok {
@@ -631,21 +631,21 @@ func ValidateButtonComplete(button map[string]any) error {
 	if err := ValidateActionID(actionID); err != nil {
 		return err
 	}
-	
+
 	// Validate URL if present
 	if url, ok := button["url"].(string); ok {
 		if err := ValidateButtonURL(url); err != nil {
 			return err
 		}
 	}
-	
+
 	// Validate accessibility_label if present
 	if label, ok := button["accessibility_label"].(string); ok {
 		if err := ValidateAccessibilityLabel(label); err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -659,7 +659,7 @@ func ValidateImageComplete(image map[string]any) error {
 	if err := ValidateImageURL(imageURL); err != nil {
 		return err
 	}
-	
+
 	// Validate alt_text
 	altText, ok := image["alt_text"].(string)
 	if !ok {
@@ -668,7 +668,7 @@ func ValidateImageComplete(image map[string]any) error {
 	if utf8.RuneCountInString(altText) > 2000 {
 		return fmt.Errorf("alt_text too long: %d chars (max 2000)", utf8.RuneCountInString(altText))
 	}
-	
+
 	return nil
 }
 
@@ -682,23 +682,23 @@ func ValidateFileComplete(file map[string]any) error {
 	if utf8.RuneCountInString(externalID) > 255 {
 		return fmt.Errorf("external_id too long: %d chars (max 255)", utf8.RuneCountInString(externalID))
 	}
-	
+
 	return nil
 }
 
 // ValidateBlockWithDetails returns detailed validation errors
 func ValidateBlockWithDetails(block map[string]any, index int) []error {
 	var errors []error
-	
+
 	// Basic validation
 	if err := ValidateBlock(block, index); err != nil {
 		errors = append(errors, err)
 	}
-	
+
 	// Complete validation
 	if err := ValidateComplete(block); err != nil {
 		errors = append(errors, err)
 	}
-	
+
 	return errors
 }

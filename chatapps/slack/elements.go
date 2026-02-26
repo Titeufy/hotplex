@@ -170,11 +170,11 @@ func BuildFileInput(actionID string, filetypes []string, maxFiles int) map[strin
 
 // BuildWorkflowButton creates a button that triggers a Slack workflow
 // Reference: https://api.slack.com/reference/block-kit/block-elements#workflow-button-element
-func BuildWorkflowButton(text string, workflow struct{ ID string; }, style string) map[string]any {
+func BuildWorkflowButton(text string, workflow struct{ ID string }, style string) map[string]any {
 	button := map[string]any{
-		"type":      "workflow_button",
-		"text":      plainText(text),
-		"workflow":  workflow,
+		"type":     "workflow_button",
+		"text":     plainText(text),
+		"workflow": workflow,
 	}
 	if style == "primary" || style == "danger" {
 		button["style"] = style
@@ -200,7 +200,7 @@ func BuildIconButton(iconName string, actionID string, confirm map[string]any) m
 // Reference: https://api.slack.com/reference/block-kit/block-elements#feedback-buttons-element
 func BuildFeedbackButtons(positiveActionID, negativeActionID string) map[string]any {
 	return map[string]any{
-		"type": "feedback_buttons",
+		"type":               "feedback_buttons",
 		"positive_action_id": positiveActionID,
 		"negative_action_id": negativeActionID,
 	}
@@ -231,12 +231,12 @@ func BuildURLSource(actionID, url string) (map[string]any, error) {
 	if err := ValidateActionID(actionID); err != nil {
 		return nil, err
 	}
-	
+
 	// SECURITY: Validate URL to prevent SSRF/XSS
 	if err := ValidateButtonURL(url); err != nil {
 		return nil, fmt.Errorf("invalid URL for url_source: %w", err)
 	}
-	
+
 	// Additional security: block dangerous schemes
 	dangerousSchemes := []string{"javascript:", "data:", "file:", "vbscript:"}
 	for _, scheme := range dangerousSchemes {
@@ -244,7 +244,7 @@ func BuildURLSource(actionID, url string) (map[string]any, error) {
 			return nil, fmt.Errorf("dangerous URL scheme detected: %s", scheme)
 		}
 	}
-	
+
 	return map[string]any{
 		"type":      "url_source",
 		"action_id": actionID,
@@ -278,9 +278,9 @@ func BuildMultiEmailInput(actionID, placeholder string, maxValues int) map[strin
 // BuildExternalSelectWithMinQuery creates an external select with minimum query length
 func BuildExternalSelectWithMinQuery(placeholder, actionID string, minQueryLength int, initialOption map[string]any) map[string]any {
 	element := map[string]any{
-		"type":            "external_select",
-		"placeholder":     plainText(placeholder),
-		"action_id":       actionID,
+		"type":             "external_select",
+		"placeholder":      plainText(placeholder),
+		"action_id":        actionID,
 		"min_query_length": minQueryLength,
 	}
 	if initialOption != nil {

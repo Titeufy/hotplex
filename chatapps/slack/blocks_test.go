@@ -9,11 +9,11 @@ import (
 
 func TestBuildImageBlock(t *testing.T) {
 	blocks := BuildImageBlock("https://example.com/img.png", "Alt text", "Title")
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	if block["type"] != "image" {
 		t.Errorf("expected type 'image', got %v", block["type"])
@@ -31,11 +31,11 @@ func TestBuildImageBlock(t *testing.T) {
 
 func TestBuildHeaderBlock(t *testing.T) {
 	blocks := BuildHeaderBlock("Test Header")
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	if block["type"] != "header" {
 		t.Errorf("expected type 'header', got %v", block["type"])
@@ -51,11 +51,11 @@ func TestBuildHeaderBlock_Truncation(t *testing.T) {
 	for i := range longText {
 		longText = longText[:i] + "a" + longText[i+1:]
 	}
-	
+
 	blocks := BuildHeaderBlock(longText)
 	block := blocks[0]
 	text := block["text"].(map[string]any)["text"].(string)
-	
+
 	if len(text) > MaxPlainTextLen {
 		t.Errorf("expected text length <= %d, got %d", MaxPlainTextLen, len(text))
 	}
@@ -63,11 +63,11 @@ func TestBuildHeaderBlock_Truncation(t *testing.T) {
 
 func TestBuildDividerBlock(t *testing.T) {
 	blocks := BuildDividerBlock()
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	if block["type"] != "divider" {
 		t.Errorf("expected type 'divider', got %v", block["type"])
@@ -76,11 +76,11 @@ func TestBuildDividerBlock(t *testing.T) {
 
 func TestBuildFileBlock(t *testing.T) {
 	blocks := BuildFileBlock("file123")
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	if block["type"] != "file" {
 		t.Errorf("expected type 'file', got %v", block["type"])
@@ -95,13 +95,13 @@ func TestBuildRichTextBlock(t *testing.T) {
 		BuildRichTextSectionText("Hello"),
 		BuildRichTextSectionBold("World"),
 	}
-	
+
 	blocks := BuildRichTextBlock(elements)
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	if block["type"] != "rich_text" {
 		t.Errorf("expected type 'rich_text', got %v", block["type"])
@@ -113,11 +113,11 @@ func TestBuildRichTextBlock(t *testing.T) {
 
 func TestBuildSectionBlock(t *testing.T) {
 	blocks := BuildSectionBlock("Hello *world*", nil, nil)
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	if block["type"] != "section" {
 		t.Errorf("expected type 'section', got %v", block["type"])
@@ -133,13 +133,13 @@ func TestBuildSectionBlock_WithFields(t *testing.T) {
 		mrkdwnText("*Field 1*"),
 		mrkdwnText("*Field 2*"),
 	}
-	
+
 	blocks := BuildSectionBlockWithFields(fields)
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	if len(block["fields"].([]map[string]any)) != 2 {
 		t.Errorf("expected 2 fields, got %d", len(block["fields"].([]map[string]any)))
@@ -151,13 +151,13 @@ func TestBuildContextBlock(t *testing.T) {
 		mrkdwnText("Context 1"),
 		mrkdwnText("Context 2"),
 	}
-	
+
 	blocks := BuildContextBlock(elements)
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	if block["type"] != "context" {
 		t.Errorf("expected type 'context', got %v", block["type"])
@@ -168,13 +168,13 @@ func TestBuildActionsBlock(t *testing.T) {
 	elements := []map[string]any{
 		BuildButton("Click", "click_action", "value", ""),
 	}
-	
+
 	blocks := BuildActionsBlock(elements)
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	if block["type"] != "actions" {
 		t.Errorf("expected type 'actions', got %v", block["type"])
@@ -183,7 +183,7 @@ func TestBuildActionsBlock(t *testing.T) {
 
 func TestBuildButton(t *testing.T) {
 	button := BuildButton("Click Me", "click_action", "value", "primary")
-	
+
 	if button["type"] != "button" {
 		t.Errorf("expected type 'button', got %v", button["type"])
 	}
@@ -200,7 +200,7 @@ func TestBuildButton(t *testing.T) {
 
 func TestBuildButtonWithURL(t *testing.T) {
 	button := BuildButtonWithURL("Open", "open_action", "https://example.com")
-	
+
 	if button["url"] != "https://example.com" {
 		t.Errorf("expected url 'https://example.com', got %v", button["url"])
 	}
@@ -208,7 +208,7 @@ func TestBuildButtonWithURL(t *testing.T) {
 
 func TestBuildOption(t *testing.T) {
 	option := BuildOption("Label", "value")
-	
+
 	if option["text"].(map[string]any)["text"] != "Label" {
 		t.Errorf("expected text 'Label', got %v", option["text"])
 	}
@@ -222,9 +222,9 @@ func TestBuildOptionGroup(t *testing.T) {
 		BuildOption("Option 1", "opt1"),
 		BuildOption("Option 2", "opt2"),
 	}
-	
+
 	group := BuildOptionGroup("Group Label", options)
-	
+
 	if group["label"].(map[string]any)["text"] != "Group Label" {
 		t.Errorf("expected label 'Group Label', got %v", group["label"])
 	}
@@ -235,7 +235,7 @@ func TestBuildOptionGroup(t *testing.T) {
 
 func TestBuildConfirmationDialog(t *testing.T) {
 	confirm := BuildConfirmationDialog("Title", "Text", "Confirm", "Deny")
-	
+
 	if confirm["title"].(map[string]any)["text"] != "Title" {
 		t.Errorf("expected title 'Title', got %v", confirm["title"])
 	}
@@ -257,7 +257,7 @@ func TestTruncateMrkdwn(t *testing.T) {
 	if result != short {
 		t.Errorf("expected %q, got %q", short, result)
 	}
-	
+
 	// Test truncation with ellipsis
 	long := string(make([]byte, 100))
 	for i := range long {
@@ -275,7 +275,7 @@ func TestTruncateMrkdwn(t *testing.T) {
 func TestTruncateMrkdwn_CodeBlock(t *testing.T) {
 	text := "Here is code: ```some code here``` and more text"
 	result := TruncateMrkdwn(text, 20)
-	
+
 	// Should not cut inside code block
 	if len(result) > 23 {
 		t.Errorf("expected length <= 23, got %d", len(result))
@@ -287,7 +287,7 @@ func TestValidateBlocks(t *testing.T) {
 	validBlocks := []map[string]any{
 		{"type": "section", "text": mrkdwnText("Hello")},
 	}
-	
+
 	err := ValidateBlocks(validBlocks, false)
 	if err != nil {
 		t.Errorf("expected no error for valid blocks, got %v", err)
@@ -300,7 +300,7 @@ func TestValidateBlocks_MaxBlocks(t *testing.T) {
 	for i := range blocks {
 		blocks[i] = map[string]any{"type": "section", "text": mrkdwnText("test")}
 	}
-	
+
 	err := ValidateBlocks(blocks, false)
 	if err == nil {
 		t.Error("expected error for too many blocks")
@@ -322,12 +322,12 @@ func TestValidateActionsBlock(t *testing.T) {
 	for i := range elements {
 		elements[i] = BuildButton("Btn", "action", "val", "")
 	}
-	
+
 	block := map[string]any{
 		"type":     "actions",
 		"elements": elements,
 	}
-	
+
 	err := ValidateBlock(block, 0)
 	if err == nil {
 		t.Error("expected error for actions with > 25 elements")
@@ -336,7 +336,7 @@ func TestValidateActionsBlock(t *testing.T) {
 
 func TestBuildDatePicker(t *testing.T) {
 	picker := BuildDatePicker("Select date", "date_action", "2024-01-01")
-	
+
 	if picker["type"] != "datepicker" {
 		t.Errorf("expected type 'datepicker', got %v", picker["type"])
 	}
@@ -347,7 +347,7 @@ func TestBuildDatePicker(t *testing.T) {
 
 func TestBuildPlainTextInput(t *testing.T) {
 	input := BuildPlainTextInput("Enter text", "input_action", "default", true, 100, 10)
-	
+
 	if input["type"] != "plain_text_input" {
 		t.Errorf("expected type 'plain_text_input', got %v", input["type"])
 	}
@@ -364,9 +364,9 @@ func TestBuildRadioButtons(t *testing.T) {
 		BuildOption("Option 1", "opt1"),
 		BuildOption("Option 2", "opt2"),
 	}
-	
+
 	radio := BuildRadioButtons(options, "radio_action", nil)
-	
+
 	if radio["type"] != "radio_buttons" {
 		t.Errorf("expected type 'radio_buttons', got %v", radio["type"])
 	}
@@ -380,9 +380,9 @@ func TestBuildCheckboxes(t *testing.T) {
 		BuildOption("Check 1", "chk1"),
 		BuildOption("Check 2", "chk2"),
 	}
-	
+
 	checkboxes := BuildCheckboxes(options, "checkbox_action", nil)
-	
+
 	if checkboxes["type"] != "checkboxes" {
 		t.Errorf("expected type 'checkboxes', got %v", checkboxes["type"])
 	}
@@ -393,9 +393,9 @@ func TestBuildStaticSelect(t *testing.T) {
 		BuildOption("Option 1", "opt1"),
 		BuildOption("Option 2", "opt2"),
 	}
-	
+
 	selectMenu := BuildStaticSelect(options, "Select...", "select_action", nil)
-	
+
 	if selectMenu["type"] != "static_select" {
 		t.Errorf("expected type 'static_select', got %v", selectMenu["type"])
 	}
@@ -406,11 +406,11 @@ func TestBuildStaticSelect(t *testing.T) {
 
 func TestBuildMarkdownBlock(t *testing.T) {
 	blocks := BuildMarkdownBlock("# Hello **World**")
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	if block["type"] != "markdown" {
 		t.Errorf("expected type 'markdown', got %v", block["type"])
@@ -424,13 +424,13 @@ func TestBuildPlanBlock(t *testing.T) {
 	sections := []map[string]any{
 		BuildPlanSection("Phase 1", items, "in_progress"),
 	}
-	
+
 	blocks := BuildPlanBlock("Project Plan", sections)
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	if block["type"] != "plan" {
 		t.Errorf("expected type 'plan', got %v", block["type"])
@@ -443,13 +443,13 @@ func TestBuildTableBlock(t *testing.T) {
 		{"Alice", "30", "NYC"},
 		{"Bob", "25", "LA"},
 	}
-	
+
 	blocks := BuildTableBlock(headers, rows, 3)
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	if block["type"] != "table" {
 		t.Errorf("expected type 'table', got %v", block["type"])
@@ -460,13 +460,13 @@ func TestBuildTaskCardBlock(t *testing.T) {
 	actions := []map[string]any{
 		BuildButton("Complete", "complete", "task1", "primary"),
 	}
-	
+
 	blocks := BuildTaskCardBlock("Task Title", "Description", "U123", "2024-12-31", "pending", actions)
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	if block["type"] != "task_card" {
 		t.Errorf("expected type 'task_card', got %v", block["type"])
@@ -475,7 +475,7 @@ func TestBuildTaskCardBlock(t *testing.T) {
 
 func TestBuildFileInput(t *testing.T) {
 	element := BuildFileInput("file_action", []string{"pdf", "doc"}, 5)
-	
+
 	if element["type"] != "file_input" {
 		t.Errorf("expected type 'file_input', got %v", element["type"])
 	}
@@ -486,7 +486,7 @@ func TestBuildFileInput(t *testing.T) {
 
 func TestBuildFeedbackButtons(t *testing.T) {
 	element := BuildFeedbackButtons("thumbs_up", "thumbs_down")
-	
+
 	if element["type"] != "feedback_buttons" {
 		t.Errorf("expected type 'feedback_buttons', got %v", element["type"])
 	}
@@ -494,7 +494,7 @@ func TestBuildFeedbackButtons(t *testing.T) {
 
 func TestBuildRichTextInput(t *testing.T) {
 	element := BuildRichTextInput("rich_action", "Enter text", "initial", true)
-	
+
 	if element["type"] != "rich_text_input" {
 		t.Errorf("expected type 'rich_text_input', got %v", element["type"])
 	}
@@ -505,7 +505,7 @@ func TestBuildRichTextInput(t *testing.T) {
 
 func TestBuildExternalSelectWithMinQuery(t *testing.T) {
 	element := BuildExternalSelectWithMinQuery("Select...", "ext_action", 3, nil)
-	
+
 	if element["type"] != "external_select" {
 		t.Errorf("expected type 'external_select', got %v", element["type"])
 	}
@@ -516,7 +516,7 @@ func TestBuildExternalSelectWithMinQuery(t *testing.T) {
 
 func TestBuildAccessibilityLabel(t *testing.T) {
 	label := BuildAccessibilityLabel("Click to open")
-	
+
 	if label["accessibility_label"] != "Click to open" {
 		t.Errorf("expected accessibility_label 'Click to open', got %v", label["accessibility_label"])
 	}
@@ -528,7 +528,7 @@ func TestValidateButtonURLLength(t *testing.T) {
 	if err := ValidateButtonURLLength(shortURL); err != nil {
 		t.Errorf("expected no error for short URL, got %v", err)
 	}
-	
+
 	// Too long URL
 	longURL := string(make([]byte, 3001))
 	for i := range longURL {
@@ -545,7 +545,7 @@ func TestValidateAccessibilityLabel(t *testing.T) {
 	if err := ValidateAccessibilityLabel(shortLabel); err != nil {
 		t.Errorf("expected no error for short label, got %v", err)
 	}
-	
+
 	// Too long label
 	longLabel := string(make([]byte, 76))
 	for i := range longLabel {
@@ -565,7 +565,7 @@ func TestValidateTableBlock(t *testing.T) {
 	if err := ValidateTableBlock(validTable); err != nil {
 		t.Errorf("expected no error for valid table, got %v", err)
 	}
-	
+
 	// Too many rows
 	tooManyRows := make([]map[string]any, 1001)
 	invalidTable := map[string]any{"rows": tooManyRows}
@@ -582,7 +582,7 @@ func TestValidatePlanBlock(t *testing.T) {
 	if err := ValidatePlanBlock(validPlan); err != nil {
 		t.Errorf("expected no error for valid plan, got %v", err)
 	}
-	
+
 	// Too many sections
 	tooManySections := make([]map[string]any, 26)
 	invalidPlan := map[string]any{"sections": tooManySections}
@@ -599,19 +599,19 @@ func TestBuildTableBlock_EmptyHeaders(t *testing.T) {
 	// Test case: No headers, only rows - should not panic
 	headers := []string{}
 	rows := [][]string{{"Data1", "Data2"}, {"Data3", "Data4"}}
-	
+
 	blocks := BuildTableBlock(headers, rows, 2)
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	rowsData, ok := block["rows"].([]map[string]any)
 	if !ok {
 		t.Fatal("expected rows to be []map[string]any")
 	}
-	
+
 	// Should have 2 data rows (no header row)
 	if len(rowsData) != 2 {
 		t.Errorf("expected 2 rows, got %d", len(rowsData))
@@ -622,19 +622,19 @@ func TestBuildTableBlock_EmptyRows(t *testing.T) {
 	// Test case: Headers only, no data rows
 	headers := []string{"Col1", "Col2"}
 	rows := [][]string{}
-	
+
 	blocks := BuildTableBlock(headers, rows, 2)
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	rowsData, ok := block["rows"].([]map[string]any)
 	if !ok {
 		t.Fatal("expected rows to be []map[string]any")
 	}
-	
+
 	// Should have 1 header row only
 	if len(rowsData) != 1 {
 		t.Errorf("expected 1 row, got %d", len(rowsData))
@@ -645,13 +645,13 @@ func TestBuildTableBlock_EmptyAll(t *testing.T) {
 	// Test case: Both headers and rows empty
 	headers := []string{}
 	rows := [][]string{}
-	
+
 	blocks := BuildTableBlock(headers, rows, 0)
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	if _, ok := block["rows"]; ok {
 		t.Error("expected no rows field when both headers and rows are empty")
@@ -664,16 +664,16 @@ func TestBuildMarkdownBlock_Truncation(t *testing.T) {
 	for i := range longText {
 		longText = longText[:i] + "a" + longText[i+1:]
 	}
-	
+
 	blocks := BuildMarkdownBlock(longText)
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	markdown := block["markdown"].(string)
-	
+
 	// Should be truncated with ellipsis
 	if len(markdown) > 12000 {
 		t.Errorf("expected markdown length <= 12000, got %d", len(markdown))
@@ -686,11 +686,11 @@ func TestBuildMarkdownBlock_Truncation(t *testing.T) {
 func TestBuildMarkdownBlock_Empty(t *testing.T) {
 	// Test case: Empty markdown
 	blocks := BuildMarkdownBlock("")
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	markdown := block["markdown"].(string)
 	if markdown != "" {
@@ -701,17 +701,17 @@ func TestBuildMarkdownBlock_Empty(t *testing.T) {
 func TestBuildPlanBlock_NilSections(t *testing.T) {
 	// Test case: Nil sections should not panic
 	blocks := BuildPlanBlock("Test Plan", nil)
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	sections, ok := block["sections"].([]map[string]any)
 	if !ok {
 		t.Fatal("expected sections to be []map[string]any")
 	}
-	
+
 	if len(sections) != 0 {
 		t.Errorf("expected 0 sections, got %d", len(sections))
 	}
@@ -723,19 +723,19 @@ func TestBuildPlanBlock_LongTitle(t *testing.T) {
 	for i := range longTitle {
 		longTitle = longTitle[:i] + "a" + longTitle[i+1:]
 	}
-	
+
 	blocks := BuildPlanBlock(longTitle, []map[string]any{})
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	titleObj, ok := block["title"].(map[string]any)
 	if !ok {
 		t.Fatal("expected title to be map[string]any")
 	}
-	
+
 	title := titleObj["text"].(string)
 	if utf8.RuneCountInString(title) > MaxPlainTextLen {
 		t.Errorf("expected title length <= %d, got %d", MaxPlainTextLen, utf8.RuneCountInString(title))
@@ -754,11 +754,11 @@ func TestBuildPlanSection_StatusValidation(t *testing.T) {
 		{"invalid status", "unknown", false},
 		{"empty status", "", false},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			section := BuildPlanSection("Test", []map[string]any{}, tt.status)
-			
+
 			if tt.valid {
 				if section["status"] != tt.status {
 					t.Errorf("expected status %q, got %q", tt.status, section["status"])
@@ -785,11 +785,11 @@ func TestBuildPlanItem_TypeValidation(t *testing.T) {
 		{"invalid type", "unknown", "task"}, // Defaults to task
 		{"empty type", "", "task"},          // Defaults to task
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			item := BuildPlanItem("Test Text", tt.itemType)
-			
+
 			if item["type"] != tt.expected {
 				t.Errorf("expected type %q, got %q", tt.expected, item["type"])
 			}
@@ -809,15 +809,15 @@ func TestBuildTaskCardBlock_StatusValidation(t *testing.T) {
 		{"invalid status", "unknown", "pending"}, // Defaults to pending
 		{"empty status", "", "pending"},          // Defaults to pending
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			blocks := BuildTaskCardBlock("Title", "Description", "", "", tt.status, nil)
-			
+
 			if len(blocks) != 1 {
 				t.Fatalf("expected 1 block, got %d", len(blocks))
 			}
-			
+
 			block := blocks[0]
 			if block["status"] != tt.expected {
 				t.Errorf("expected status %q, got %q", tt.expected, block["status"])
@@ -832,19 +832,19 @@ func TestBuildTaskCardBlock_TooManyActions(t *testing.T) {
 	for i := 0; i < 30; i++ {
 		actions[i] = BuildButton(fmt.Sprintf("Btn%d", i), fmt.Sprintf("action_%d", i), "val", "")
 	}
-	
+
 	blocks := BuildTaskCardBlock("Title", "Description", "", "", "pending", actions)
-	
+
 	if len(blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(blocks))
 	}
-	
+
 	block := blocks[0]
 	blockActions, ok := block["actions"].([]map[string]any)
 	if !ok {
 		t.Fatal("expected actions to be []map[string]any")
 	}
-	
+
 	// Should be limited to 25
 	if len(blockActions) > 25 {
 		t.Errorf("expected max 25 actions, got %d", len(blockActions))
@@ -857,14 +857,14 @@ func TestBuildPlanSection_TooManyItems(t *testing.T) {
 	for i := 0; i < 60; i++ {
 		items[i] = BuildPlanItem(fmt.Sprintf("Item%d", i), "task")
 	}
-	
+
 	section := BuildPlanSection("Test Section", items, "")
-	
+
 	itemsResult, ok := section["items"].([]map[string]any)
 	if !ok {
 		t.Fatal("expected items to be []map[string]any")
 	}
-	
+
 	// Should be limited to 50
 	if len(itemsResult) > 50 {
 		t.Errorf("expected max 50 items, got %d", len(itemsResult))
@@ -874,11 +874,11 @@ func TestBuildPlanSection_TooManyItems(t *testing.T) {
 func TestBuildURLSource_SafeURL(t *testing.T) {
 	// Test with safe HTTPS URL
 	blocks, err := BuildURLSource("action_id", "https://example.com/data")
-	
+
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	
+
 	if blocks["type"] != "url_source" {
 		t.Errorf("expected type 'url_source', got %v", blocks["type"])
 	}
@@ -893,11 +893,11 @@ func TestBuildURLSource_DangerousScheme(t *testing.T) {
 		{"data", "data:text/html,<script>alert(1)</script>"},
 		{"file", "file:///etc/passwd"},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := BuildURLSource("action_id", tt.url)
-			
+
 			if err == nil {
 				t.Errorf("expected error for dangerous URL scheme %s", tt.name)
 			}
@@ -908,16 +908,15 @@ func TestBuildURLSource_DangerousScheme(t *testing.T) {
 	}
 }
 
-
 func TestValidateTableBlock_ZeroRows(t *testing.T) {
 	block := map[string]any{
 		"type":    "table",
 		"rows":    []map[string]any{},
 		"columns": 3,
 	}
-	
+
 	err := ValidateTableBlock(block)
-	
+
 	if err == nil {
 		t.Error("expected error for zero rows")
 	}
@@ -928,12 +927,12 @@ func TestValidateTableBlock_ZeroRows(t *testing.T) {
 
 func TestValidateTaskCardBlock_MissingStatus(t *testing.T) {
 	block := map[string]any{
-		"type": "task_card",
+		"type":  "task_card",
 		"title": map[string]any{"text": "Test", "type": "plain_text"},
 	}
-	
+
 	err := ValidateTaskCardBlock(block)
-	
+
 	if err == nil {
 		t.Error("expected error for missing status")
 	}

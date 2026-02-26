@@ -113,8 +113,8 @@ func (f *MrkdwnFormatter) escapeSpecialChars(text string) string {
 			if endIdx != -1 {
 				inner := text[i+1 : endIdx]
 				// Only skip if it's valid Slack syntax
-				if len(inner) > 0 && (inner[0] == '!' || inner[0] == '@' || inner[0] == '#' || 
-				    strings.Contains(inner, "|")) {
+				if len(inner) > 0 && (inner[0] == '!' || inner[0] == '@' || inner[0] == '#' ||
+					strings.Contains(inner, "|")) {
 					result.WriteString(text[i : endIdx+1])
 					i = endIdx
 					continue
@@ -267,7 +267,7 @@ func (f *MrkdwnFormatter) convertLinks(text string) string {
 				if closeParen != -1 {
 					linkText := text[i+1 : i+closeBracket]
 					linkURL := text[i+closeBracket+2 : i+closeBracket+1+closeParen]
-					
+
 					// Validate URL scheme for security
 					validScheme := false
 					allowedSchemes := []string{"http://", "https://", "mailto:", "ftp://"}
@@ -277,7 +277,7 @@ func (f *MrkdwnFormatter) convertLinks(text string) string {
 							break
 						}
 					}
-					
+
 					if validScheme {
 						// Safe URL - convert to Slack format
 						result.WriteByte('<')
@@ -980,7 +980,7 @@ func (b *BlockBuilder) BuildChunkedAnswerBlocks(content string) [][]map[string]a
 
 	// Use chunker to split content
 	chunks := ChunkMessageMarkdown(content, SlackTextLimit)
-	
+
 	var allBlocks [][]map[string]any
 	for i, chunk := range chunks {
 		// Add chunk indicator for multi-chunk messages
@@ -991,7 +991,7 @@ func (b *BlockBuilder) BuildChunkedAnswerBlocks(content string) [][]map[string]a
 			allBlocks = append(allBlocks, b.BuildAnswerBlock(chunk))
 		}
 	}
-	
+
 	return allBlocks
 }
 
@@ -1018,12 +1018,12 @@ func ValidateAndTruncateBlocks(blocks []map[string]any) ([]map[string]any, error
 				}
 			}
 		}
-		
+
 		// Validate again
 		if err := ValidateBlocks(blocks, false); err != nil {
 			return blocks, err
 		}
 	}
-	
+
 	return blocks, nil
 }
