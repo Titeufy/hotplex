@@ -245,6 +245,7 @@ func (c *StreamCallback) handleToolResult(data any) error {
 	success := true
 	var durationMs int64
 	var toolName string
+	var filePath string
 	output := ""
 
 	_ = toolName // used in BuildToolResultBlock
@@ -254,7 +255,8 @@ func (c *StreamCallback) handleToolResult(data any) error {
 			"event_data", m.EventData,
 			"meta_tool_name", m.Meta.ToolName,
 			"meta_duration_ms", m.Meta.DurationMs,
-			"meta_status", m.Meta.Status)
+			"meta_status", m.Meta.Status,
+			"meta_file_path", m.Meta.FilePath)
 		if m.Meta != nil {
 			if m.Meta.Status == "error" {
 				success = false
@@ -264,6 +266,7 @@ func (c *StreamCallback) handleToolResult(data any) error {
 			}
 			durationMs = m.Meta.DurationMs
 			toolName = m.Meta.ToolName
+			filePath = m.Meta.FilePath
 		}
 		if m.EventData != "" {
 			output = m.EventData
@@ -271,7 +274,7 @@ func (c *StreamCallback) handleToolResult(data any) error {
 	}
 
 	c.logger.Debug("[TOOL] handleToolResult sending", "success", success, "duration_ms", durationMs, "output_len", len(output))
-	blocks := c.blockBuilder.BuildToolResultBlock(success, durationMs, output, false, toolName)
+	blocks := c.blockBuilder.BuildToolResultBlock(success, durationMs, output, false, toolName, filePath)
 	return c.sendBlockMessage(string(provider.EventTypeToolResult), blocks, false)
 }
 

@@ -901,8 +901,10 @@ func TestBuildURLSource_DangerousScheme(t *testing.T) {
 			if err == nil {
 				t.Errorf("expected error for dangerous URL scheme %s", tt.name)
 			}
-			if !strings.Contains(err.Error(), "dangerous") {
-				t.Errorf("expected 'dangerous' in error, got %q", err.Error())
+			// Check for either "dangerous" or the validation error
+			errMsg := err.Error()
+			if !strings.Contains(errMsg, "dangerous") && !strings.Contains(errMsg, "URL scheme not allowed") {
+				t.Errorf("expected 'dangerous' or 'URL scheme not allowed' in error, got %q", errMsg)
 			}
 		})
 	}

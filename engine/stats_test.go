@@ -50,13 +50,14 @@ func TestSessionStats_RecordToolResult_NoStart(t *testing.T) {
 	stats := &SessionStats{SessionID: "test"}
 
 	// Call RecordToolResult without RecordToolUse
+	// This records minimal duration (1ms) because Claude Code CLI may not send tool_use events
 	duration := stats.RecordToolResult()
 
-	if duration != 0 {
-		t.Errorf("RecordToolResult() without RecordToolUse should return 0, got %d", duration)
+	if duration != 1 {
+		t.Errorf("RecordToolResult() without RecordToolUse should return 1 (minimal duration), got %d", duration)
 	}
-	if stats.ToolCallCount != 0 {
-		t.Errorf("ToolCallCount = %d, want 0", stats.ToolCallCount)
+	if stats.ToolCallCount != 1 {
+		t.Errorf("ToolCallCount = %d, want 1", stats.ToolCallCount)
 	}
 }
 

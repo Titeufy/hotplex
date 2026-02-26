@@ -9,15 +9,27 @@
 
 ## 📋 目录
 
+## 📋 目录
+
 - [概述](#概述)
 - [Engine Events 完整类型](#engine-events-完整类型)
 - [Slack Block Kit 映射方案](#slack-block-kit-映射方案)
+  - [1. Thinking 事件](#1-thinking-事件)
+  - [2. Tool Use 事件](#2-tool-use-事件)
+  - [3. Tool Result 事件](#3-tool-result-事件)
+  - [4. Answer 事件](#4-answer-事件)
+  - [5. Error 事件](#5-error-事件)
+  - [6. Danger Block 事件](#6-danger-block-事件)
+  - [7. Session Stats 事件](#7-session-stats-事件)
+  - [8. Plan Mode 事件](#8-plan-mode-事件)
+  - [9. AskUserQuestion 事件](#9-askuserquestion-事件)
+  - [10. Learning/Explanatory Output Styles 事件](#10-learningexplanatory-output-styles-事件)
+  - [11. Permission Request 事件](#11-permission-request-事件)
 - [事件聚合策略](#事件聚合策略)
 - [Block Builder API 参考](#block-builder-api-参考)
 - [mrkdwn 格式转换](#mrkdwn-格式转换)
 - [最佳实践与限制](#最佳实践与限制)
 - [实现示例](#实现示例)
-
 ---
 
 ## 概述
@@ -86,8 +98,20 @@
 | `EventTypeStepFinish` | `"step_finish"` | 步骤完成 | OpenCode `Part.Type="step-finish"` |
 | `EventTypeRaw` | `"raw"` | 原始输出 | 非 JSON 格式输出 (fallback) |
 | `EventTypePermissionRequest` | `"permission_request"` | 权限请求 | Claude Code 请求用户审批 |
+| `EventTypePlanMode` | `"plan_mode"` | 计划模式 | CLI 输出 `subtype="plan_generation"` |
+| `EventTypeAskUserQuestion` | `"ask_user_question"` | 用户澄清问题 | CLI 输出 `type="tool_use"` name="AskUserQuestion" |
+| `EventTypeOutputStyle` | `"output_style"` | 输出风格 | Learning/Explanatory 模式洞察 |
 
-### 扩展事件类型 (Engine 内部)
+---
+
+### 特殊模式识别表
+
+| 模式/工具 | 识别方式 | 事件特征 | UI 标识 |
+|-----------|----------|----------|--------|
+| **Plan Mode** | `thinking.subtype == "plan_generation"` | 只生成计划，无 tool_use | 📋 |
+| **AskUserQuestion** | `tool_use.name == "AskUserQuestion"` | 带 options 数组 | ❓ |
+| **Learning Style** | 检测 `TODO(human)` 标记 | 包含用户待办任务 | 🫵 |
+| **Explanatory Style** | 配置或 thinking 事件标记 | 包含教育性 Insights | 💡 |
 
 | 事件类型 | 值 | 描述 | 来源 |
 |---------|-----|------|------|
@@ -601,119 +625,56 @@ type SessionStatsData struct {
 
 ---
 
-### 8. Permission Request 事件
+### 8. Plan Mode 事件
 
-**Block 类型**: `header` + `section` + `actions`  
-**聚合策略**: ❌ 不聚合 - 需要用户立即决策  
-**UI 目标**: 权限审批交互
+**Block 类型**: `header` + `section` + `context`  
+**聚合策略**: ✅ 同类聚合 - 计划步骤可合并  
+**UI 目标**: 清晰展示 AI 的计划步骤，区分"规划"与"执行"状态
 
 ```json
 {
   "type": "header",
-  "text": {"type": "plain_text", "text": "⚠️ Permission Request"}
+  "text": {"type": "plain_text", "text": "📋 Plan Mode - Proposed Steps"}
 },
 {
   "type": "section",
-  "text": {"type": "mrkdwn", "text": "*Tool:* `Bash`"}
-},
-{
-  "type": "section",
-  "text": {"type": "mrkdwn", "text": "*Command:*\n```\nls -la\n```"}
+  "text": {
+    "type": "mrkdwn",
+    "text": "*Step 1/5:* Analyze the codebase structure\n\n> I'll start by reading the main.go file to understand the current architecture."
+  }
 },
 {
   "type": "context",
   "elements": [{
     "type": "mrkdwn",
-    "text": "Session: `session-123`"
+    "text": "🔒 _Plan Mode: No actions will be executed without approval_"
   }]
-},
-{
-  "type": "actions",
-  "elements": [
-    {
-      "type": "button",
-      "text": {"type": "plain_text", "text": "✅ Allow"},
-      "action_id": "perm_allow",
-      "style": "primary",
-      "value": "allow:session-123:message-id"
-    },
-    {
-      "type": "button",
-      "text": {"type": "plain_text", "text": "🚫 Deny"},
-      "action_id": "perm_deny",
-      "style": "danger",
-      "value": "deny:session-123:message-id"
-    }
-  ]
 }
 ```
 
-**Go 实现** (`block_builder.go:783-857`):
+**Go 实现** (新增):
 
 ```go
-func BuildPermissionRequestBlocks(
-    req *provider.PermissionRequest, 
-    sessionID string,
-) []map[string]any {
-    tool, input := req.GetToolAndInput()
-    
-    // Truncate long commands
-    displayInput := input
-    if len(displayInput) > 500 {
-        displayInput = displayInput[:497] + "..."
-    }
-    
+func (b *BlockBuilder) BuildPlanModeBlock(stepNumber, totalSteps int, planText string) []map[string]any {
     blocks := []map[string]any{}
     
     // 1. Header
     blocks = append(blocks, map[string]any{
         "type": "header",
-        "text": plainText("⚠️ Permission Request"),
+        "text": plainText(fmt.Sprintf("📋 Plan Mode - Step %d/%d", stepNumber, totalSteps)),
     })
     
-    // 2. Tool information
-    if tool != "" {
-        blocks = append(blocks, map[string]any{
-            "type": "section",
-            "text": mrkdwnText(fmt.Sprintf("*Tool:* `%s`", tool)),
-        })
-    }
+    // 2. Plan description
+    blocks = append(blocks, map[string]any{
+        "type": "section",
+        "text": mrkdwnText(planText),
+    })
     
-    // 3. Command preview
-    if displayInput != "" {
-        blocks = append(blocks, map[string]any{
-            "type": "section",
-            "text": mrkdwnText(fmt.Sprintf("*Command:*\n```\n%s\n```", displayInput)),
-        })
-    }
-    
-    // 4. Session info
+    // 3. Mode indicator
     blocks = append(blocks, map[string]any{
         "type": "context",
         "elements": []map[string]any{
-            mrkdwnText(fmt.Sprintf("Session: `%s`", sessionID)),
-        },
-    })
-    
-    // 5. Action buttons
-    blocks = append(blocks, map[string]any{
-        "type":     "actions",
-        "block_id": fmt.Sprintf("perm_%s", req.MessageID),
-        "elements": []map[string]any{
-            {
-                "type":      "button",
-                "text":      plainText("✅ Allow"),
-                "action_id": "perm_allow",
-                "style":     "primary",
-                "value":     fmt.Sprintf("allow:%s:%s", sessionID, req.MessageID),
-            },
-            {
-                "type":      "button",
-                "text":      plainText("🚫 Deny"),
-                "action_id": "perm_deny",
-                "style":     "danger",
-                "value":     fmt.Sprintf("deny:%s:%s", sessionID, req.MessageID),
-            },
+            mrkdwnText("🔒 _Plan Mode: Review before executing_"),
         },
     })
     
@@ -721,22 +682,308 @@ func BuildPermissionRequestBlocks(
 }
 ```
 
-**审批结果展示**:
+**设计说明**:
+- 使用 `📋` Emoji 标识计划模式
+- 显示步骤进度 (Step N/M)
+- 底部 Context 明确标注"Plan Mode"状态
+- 可与交互式按钮配合 ("Execute Plan" / "Modify Plan")
+
+**识别方式** (从 thinking 事件的 subtype 字段):
+```go
+if event.RawType == "thinking" && event.Subtype == "plan_generation" {
+    // Plan Mode 事件
+    handlePlanMode(event)
+}
+```
+
+---
+
+### 9. AskUserQuestion 事件
+
+**Block 类型**: `header` + `section` + `actions`  
+**聚合策略**: ❌ 不聚合 - 需要用户立即回答  
+**UI 目标**: 清晰展示问题，提供交互式选项按钮
+
+```json
+{
+  "type": "header",
+  "text": {"type": "plain_text", "text": "❓ Clarification Needed"}
+},
+{
+  "type": "section",
+  "text": {
+    "type": "mrkdwn",
+    "text": "*Question:* Which testing framework should I use for this project?"
+  }
+},
+{
+  "type": "actions",
+  "elements": [{
+      "type": "button",
+      "text": {"type": "plain_text", "text": "Jest"},
+      "action_id": "ask_answer",
+      "value": "question_id:jest"
+    },
+    {
+      "type": "button",
+      "text": {"type": "plain_text", "text": "Vitest"},
+      "action_id": "ask_answer",
+      "value": "question_id:vitest"
+    },
+    {
+      "type": "button",
+      "text": {"type": "plain_text", "text": "Mocha"},
+      "action_id": "ask_answer",
+      "value": "question_id:mocha"
+    },
+    {
+      "type": "button",
+      "text": {"type": "plain_text", "text": "Other (custom)"},
+      "action_id": "ask_answer_custom",
+      "style": "primary",
+      "value": "question_id:custom"
+    }
+  ]
+}
+```
+
+**Go 实现** (新增):
 
 ```go
-// 审批通过
-BuildPermissionApprovedBlocks(tool, input)
-// 审批拒绝
-BuildPermissionDeniedBlocks(tool, input, reason)
+type AskUserQuestionRequest struct {
+    MessageID   string   // 问题唯一标识
+    Question    string   // 问题文本
+    Options     []Option // 选项列表
+    QuestionType string  // "single-select" | "multi-select" | "custom"
+}
+
+type Option struct {
+    Label string // 按钮显示文本
+    Value string // 回调值
+}
+
+func BuildAskUserQuestionBlocks(req *AskUserQuestionRequest, sessionID string) []map[string]any {
+    blocks := []map[string]any{}
+    
+    // 1. Header
+    blocks = append(blocks, map[string]any{
+        "type": "header",
+        "text": plainText("❓ Clarification Needed"),
+    })
+    
+    // 2. Question
+    blocks = append(blocks, map[string]any{
+        "type": "section",
+        "text": mrkdwnText(fmt.Sprintf("*Question:* %s", req.Question)),
+    })
+    
+    // 3. Action buttons (max 5 per Slack limit)
+    actionElements := []map[string]any{}
+    maxButtons := 5
+    for i, opt := range req.Options {
+        if i >= maxButtons-1 {
+            // Last button: Custom input
+            break
+        }
+        actionElements = append(actionElements, map[string]any{
+            "type":      "button",
+            "text":      plainText(opt.Label),
+            "action_id": "ask_answer",
+            "value":     fmt.Sprintf("%s:%s:%s", req.MessageID, sessionID, opt.Value),
+        })
+    }
+    
+    // Always add custom option as last button
+    actionElements = append(actionElements, map[string]any{
+        "type":      "button",
+        "text":      plainText("Other (custom)"),
+        "action_id": "ask_answer_custom",
+        "style":     "primary",
+        "value":     fmt.Sprintf("%s:%s:custom", req.MessageID, sessionID),
+    })
+    
+    blocks = append(blocks, map[string]any{
+        "type":     "actions",
+        "block_id": fmt.Sprintf("ask_%s", req.MessageID),
+        "elements": actionElements,
+    })
+    
+    return blocks
+}
 ```
 
 **设计说明**:
-- 两个按钮：Allow (primary) / Deny (danger)
-- `block_id` 包含 MessageID，用于回调路由
-- `value` 编码 operation:sessionID:messageID，便于解析
-- 命令截断到 500 字符，避免超出限制
+- 使用 `❓` Emoji 标识需要用户回答
+- 单选用 radio-style 按钮，多选用 checkbox-style (需自定义)
+- 始终提供 "Other (custom)" 选项支持自定义输入
+- 最多 5 个按钮 (Slack 限制)，超出需使用 select menu
+
+**识别方式** (从 tool_use 事件):
+```go
+if event.RawType == "tool_use" && event.ToolName == "AskUserQuestion" {
+    // 解析 event.RawLine 获取完整问题结构
+    var askReq AskUserQuestionRequest
+    parseAskUserQuestion(event.RawLine, &askReq)
+    handleAskUserQuestion(&askReq)
+}
+```
+
+**回调处理**:
+```go
+// 处理用户选择
+func handleAskAnswer(actionID, value, sessionID string) error {
+    // value format: "message_id:session_id:answer"
+    parts := strings.Split(value, ":")
+    messageID := parts[0]
+    answer := parts[2]
+    
+    // 将答案发送回 Claude Code
+    // 通过 stdin 发送 JSON 响应
+    return nil
+}
+```
 
 ---
+
+### 10. Learning/Explanatory Output Styles 事件
+
+**Block 类型**: `section` + `context` + `divider`  
+**聚合策略**: ✅ 同类聚合 - 教育性内容可合并  
+**UI 目标**: 区分"主要回答"与"教育性 Insights"
+
+```json
+{
+  "type": "section",
+  "text": {
+    "type": "mrkdwn",
+    "text": "Here's the solution to your problem..."
+  }
+},
+{
+  "type": "divider"
+},
+{
+  "type": "section",
+  "text": {
+    "type": "mrkdwn",
+    "text": "💡 *Learning Insight*\n\nThis pattern is called a _\"Repository Pattern\"_ - it separates data access from business logic."
+  },
+  "expand": true
+},
+{
+  "type": "context",
+  "elements": [{
+    "type": "mrkdwn",
+    "text": "📚 _Explanatory Mode: Educational insights included_"
+  }]
+}
+```
+
+**Go 实现** (新增):
+
+```go
+type OutputStyle string
+
+const (
+    OutputStyleDefault     OutputStyle = "default"
+    OutputStyleExplanatory OutputStyle = "explanatory"
+    OutputStyleLearning    OutputStyle = "learning"
+)
+
+func (b *BlockBuilder) BuildInsightBlock(insightText string, style OutputStyle) []map[string]any {
+    blocks := []map[string]any{}
+    
+    emoji := "💡"
+    title := "Learning Insight"
+    if style == OutputStyleExplanatory {
+        emoji = "📖"
+        title = "Explanation"
+    }
+    
+    // Divider before insight
+    blocks = append(blocks, map[string]any{
+        "type": "divider",
+    })
+    
+    // Insight section
+    blocks = append(blocks, map[string]any{
+        "type": "section",
+        "text": mrkdwnText(fmt.Sprintf("%s *%s*\n\n%s", emoji, title, insightText)),
+        "expand": true,
+    })
+    
+    // Mode indicator
+    blocks = append(blocks, map[string]any{
+        "type": "context",
+        "elements": []map[string]any{
+            mrkdwnText(fmt.Sprintf("📚 _%s Mode: %s_", 
+                style, 
+                getStyleDescription(style))),
+        },
+    })
+    
+    return blocks
+}
+
+func getStyleDescription(style OutputStyle) string {
+    switch style {
+    case OutputStyleExplanatory:
+        return "Educational insights included"
+    case OutputStyleLearning:
+        return "Collaborative coding with TODOs for you"
+    default:
+        return "Standard mode"
+    }
+}
+```
+
+**设计说明**:
+- 使用 Divider 分隔主回答和教育性内容
+- `💡` / `📖` Emoji 标识洞察类型
+- Context 明确标注当前 Output Style
+- `expand: true` 支持长内容展开
+
+**识别方式** (从 system 事件或配置):
+```go
+// Output Style 通常在会话开始时配置
+// 可通过以下方式识别:
+// 1. 检查 provider 配置中的 OutputStyle 字段
+// 2. 解析 thinking 事件中的 style 标记
+// 3. 检测回答中的特定模式 (如 TODO(human))
+
+if event.RawType == "thinking" && event.Metadata != nil {
+    if style := event.Metadata.OutputStyle; style != "" {
+        currentOutputStyle = OutputStyle(style)
+    }
+}
+
+// 检测 Learning Mode 的 TODO(human) 标记
+if strings.Contains(event.Content, "TODO(human)") {
+    handleLearningModeTODO(event)
+}
+```
+
+**Learning Mode TODO 处理**:
+```go
+func BuildLearningTODOBlock(todoText string) []map[string]any {
+    return []map[string]any{
+        {
+            "type": "callout",
+            "elements": []map[string]any{
+                {
+                    "type": "mrkdwn",
+                    "text": fmt.Sprintf("🫵 *Your Turn:*\n%s\n\n_Implement this TODO when ready._", todoText),
+                },
+            },
+            "background_style": "blue",
+        },
+    }
+}
+```
+
+---
+
+### 11. Permission Request 事件
 
 ## 事件聚合策略
 
@@ -752,6 +999,9 @@ BuildPermissionDeniedBlocks(tool, input, reason)
 | `danger_block` | section | ❌ 不聚合 | 立即 | 安全拦截警告 |
 | `session_stats` | header+section | 最后发送 | 单次 | 会话总结 |
 | `permission_request` | header+actions | ❌ 不聚合 | 立即 | 需要用户决策 |
+| `plan_mode` | header+section+context | ✅ 同类聚合 | 节流 | 计划步骤可合并 |
+| `ask_user_question` | header+actions | ❌ 不聚合 | 立即 | 需要用户立即回答 |
+| `output_style_insight` | section+divider | ✅ 同类聚合 | 节流 | 教育性内容可合并 |
 
 ### 流式更新实现 (`engine_handler.go:296-303`)
 
@@ -813,8 +1063,10 @@ blockBuilder := slack.NewBlockBuilder()
 | `BuildAnswerBlock(content string)` | Markdown 内容 | `[]map[string]any` | answer 事件 |
 | `BuildSessionStatsBlock(stats *event.SessionStatsData, style SessionStatsStyle)` | 统计数据、样式 | `[]map[string]any` | session_stats 事件 |
 | `BuildPermissionRequestBlocks(req *provider.PermissionRequest, sessionID string)` | 权限请求、会话 ID | `[]map[string]any` | permission_request 事件 |
+| `BuildPlanModeBlock(stepNumber, totalSteps int, planText string)` | 步骤编号、总步骤数、计划文本 | `[]map[string]any` | plan_mode 事件 |
+| `BuildAskUserQuestionBlocks(req *AskUserQuestionRequest, sessionID string)` | 问题请求、会话 ID | `[]map[string]any` | ask_user_question 事件 |
+| `BuildInsightBlock(insightText string, style OutputStyle)` | 洞察文本、输出风格 | `[]map[string]any` | output_style_insight 事件 |
 | `BuildDividerBlock()` | 无 | `[]map[string]any` | 分隔线 |
-
 ### 辅助方法
 
 ```go
@@ -1129,7 +1381,12 @@ func handleInteractive(w http.ResponseWriter, r *http.Request) {
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | 1.0 | 2026-02-26 | 初始版本，完成全部 8 种事件映射 |
+| 1.1 | 2026-02-26 | 新增 Plan Mode、AskUserQuestion、Output Styles 支持 |
 
+---
+
+**维护者**: HotPlex Team  
+**最后审查**: 2026-02-26
 ---
 
 **维护者**: HotPlex Team  

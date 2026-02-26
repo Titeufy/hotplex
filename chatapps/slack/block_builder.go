@@ -2,11 +2,14 @@ package slack
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/hrygo/hotplex/event"
 	"github.com/hrygo/hotplex/provider"
 )
+
+const toolResultDurationThreshold = 500 // ms
 
 // BlockBuilder builds Slack Block Kit messages for various event types
 type BlockBuilder struct{}
@@ -389,10 +392,28 @@ func (b *BlockBuilder) BuildToolUseBlock(toolName, input string, truncated bool)
 	}
 }
 
+// truncatePath truncates a file path for display
+// Format: /very/long/path/to/file.go -> /very/long/pat.../file.go
+func truncatePath(path string, maxLen int) string {
+	if len(path) <= maxLen {
+		return path
+	}
+	dir := filepath.Dir(path)
+	base := filepath.Base(path)
+	// Truncate dir to fit maxLen
+	halfLen := (maxLen - len(base) - 4) / 2 // 4 for "..."
+	if halfLen < 3 {
+		halfLen = 3
+	}
+	return fmt.Sprintf("%s...%s", dir[:halfLen], base)
+}
+
+// BuildToolResultBlock builds a section block for tool execution result
+
 // BuildToolResultBlock builds a section block for tool execution result
 // Used for: provider.EventTypeToolResult
 // Strategy: Can be aggregated, includes optional button to expand output
-func (b *BlockBuilder) BuildToolResultBlock(success bool, durationMs int64, output string, hasButton bool, toolName string) []map[string]any {
+func (b *BlockBuilder) BuildToolResultBlock(success bool, durationMs int64, output string, hasButton bool, toolName string, filePath string) []map[string]any {
 	var blocks []map[string]any
 
 	// Build status text
@@ -423,7 +444,8 @@ func (b *BlockBuilder) BuildToolResultBlock(success bool, durationMs int64, outp
 	blocks = append(blocks, resultBlock)
 
 	// Add metadata context block (Duration)
-	if durationMs > 0 {
+	// Only show duration if it exceeds threshold
+	if durationMs > toolResultDurationThreshold {
 		blocks = append(blocks, map[string]any{
 			"type": "context",
 			"elements": []map[string]any{

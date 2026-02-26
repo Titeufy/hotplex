@@ -542,6 +542,10 @@ func ValidateTableBlock(block map[string]any) error {
 		return fmt.Errorf("table block must have rows")
 	}
 
+	if len(rows) == 0 {
+		return fmt.Errorf("table block must have at least 1 row")
+	}
+
 	if len(rows) > 1000 {
 		return fmt.Errorf("table block cannot have more than 1000 rows")
 	}
@@ -570,17 +574,19 @@ func ValidatePlanBlock(block map[string]any) error {
 
 // ValidateTaskCardBlock validates task card block
 func ValidateTaskCardBlock(block map[string]any) error {
-	// Validate status
+	// Validate status - must be present
 	status, ok := block["status"].(string)
-	if ok {
-		validStatuses := map[string]bool{
-			"pending":     true,
-			"in_progress": true,
-			"completed":   true,
-		}
-		if !validStatuses[status] {
-			return fmt.Errorf("task_card status must be pending, in_progress, or completed")
-		}
+	if !ok || status == "" {
+		return fmt.Errorf("task_card status is required")
+	}
+
+	validStatuses := map[string]bool{
+		"pending":     true,
+		"in_progress": true,
+		"completed":   true,
+	}
+	if !validStatuses[status] {
+		return fmt.Errorf("task_card status must be pending, in_progress, or completed")
 	}
 
 	return nil
