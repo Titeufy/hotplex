@@ -171,6 +171,30 @@ func (c *StreamCallback) Handle(eventType string, data any) error {
 		return c.handleExitPlanMode(data)
 	case provider.EventTypeAskUserQuestion:
 		return c.handleAskUserQuestion(data)
+	case provider.EventTypeResult:
+		return c.handleSessionStats(data)
+	case provider.EventTypeCommandProgress:
+		return c.handleCommandProgress(data)
+	case provider.EventTypeCommandComplete:
+		return c.handleCommandComplete(data)
+	case provider.EventTypeSystem:
+		return c.handleSystem(data)
+	case provider.EventTypeUser:
+		return c.handleUser(data)
+	case provider.EventTypeStepStart:
+		return c.handleStepStart(data)
+	case provider.EventTypeStepFinish:
+		return c.handleStepFinish(data)
+	case provider.EventTypeRaw:
+		return c.handleRaw(data)
+	case provider.EventTypeSessionStart:
+		return c.handleSessionStart(data)
+	case provider.EventTypeEngineStarting:
+		return c.handleEngineStarting(data)
+	case provider.EventTypeUserMessageReceived:
+		return c.handleUserMessageReceived(data)
+	case provider.EventTypePermissionRequest:
+		return c.handlePermissionRequest(data)
 	default:
 		// Check for specific engine/extended events
 		if eventType == "danger_block" {
@@ -308,11 +332,13 @@ func (c *StreamCallback) updateStatusMessage(statusType base.MessageType, displa
 	if c.isFirst {
 		// First status event - create new message
 		c.isFirst = false
-		c.thinkingSent = true
 		c.currentStatus = statusType
 
 		// Send new message and capture ts for future updates
 		if err := c.sendMessageAndGetTS(convertToChatMessage(msg)); err != nil {
+			// Reset state on send failure to allow retry
+			c.isFirst = true
+			c.currentStatus = ""
 			return err
 		}
 
@@ -322,7 +348,13 @@ func (c *StreamCallback) updateStatusMessage(statusType base.MessageType, displa
 			if channelID, ok := msg.Metadata["channel_id"].(string); ok {
 				c.thinkingChannelID = channelID
 			}
+			// Only set thinkingSent=true AFTER successful send and TS capture
+			c.thinkingSent = true
 			c.logger.Debug("Captured status message ts for updates", "ts", ts, "channel_id", c.thinkingChannelID)
+		} else {
+			// TS not captured - log warning but still mark as sent
+			c.logger.Warn("Failed to capture status message ts, updates may not work")
+			c.thinkingSent = true
 		}
 
 		return nil
@@ -498,6 +530,22 @@ func (c *StreamCallback) handleAnswer(data any) error {
 	}
 	msg.Metadata = c.mergeMetadata(msg.Metadata)
 
+	// Initialize stream state on first answer for throttled updates
+	if c.streamState == nil {
+		channelID := ""
+		if c.metadata != nil {
+			if ch, ok := c.metadata["channel_id"].(string); ok {
+				channelID = ch
+			}
+		}
+		if channelID != "" {
+			c.streamState = &StreamState{
+				ChannelID: channelID,
+				// MessageTS will be set after first send
+			}
+		}
+	}
+
 	// Use throttled streaming update if we have a message to update
 	if c.streamState != nil {
 		return c.streamState.updateThrottled(c.ctx, c.adapters, c.platform, c.sessionID, msg)
@@ -563,6 +611,7 @@ func (c *StreamCallback) handleDangerBlock(data any) error {
 }
 
 // handleSessionStats handles session statistics events
+// Implements EventTypeResult (Turn Complete)
 func (c *StreamCallback) handleSessionStats(data any) error {
 	stats, ok := data.(*event.SessionStatsData)
 	if !ok {
@@ -570,26 +619,249 @@ func (c *StreamCallback) handleSessionStats(data any) error {
 		return nil
 	}
 
-	// Format stats as string content
-	content := fmt.Sprintf("Session: %s | Duration: %dms | Tokens: %d | Tools: %d",
-		stats.SessionID, stats.TotalDurationMs, stats.TotalTokens, stats.ToolCallCount)
-
 	// Send stats message with platform-agnostic MessageType
 	msg := &base.ChatMessage{
 		Type:    base.MessageTypeSessionStats,
-		Content: content,
+		Content: "",
 		Metadata: map[string]any{
 			"event_type":           "session_stats",
 			"session_id":           stats.SessionID,
-			"total_duration_ms":    stats.TotalDurationMs,
+			"duration_ms":          stats.TotalDurationMs,
 			"thinking_duration_ms": stats.ThinkingDurationMs,
 			"tool_duration_ms":     stats.ToolDurationMs,
-			"input_tokens":         stats.InputTokens,
-			"output_tokens":        stats.OutputTokens,
+			"tokens_in":            stats.InputTokens,
+			"tokens_out":           stats.OutputTokens,
 			"total_tokens":         stats.TotalTokens,
-			"tool_call_count":      stats.ToolCallCount,
+			"tool_count":           stats.ToolCallCount,
 			"tools_used":           stats.ToolsUsed,
 			"files_modified":       stats.FilesModified,
+		},
+	}
+	msg.Metadata = c.mergeMetadata(msg.Metadata)
+	return c.adapters.SendMessage(c.ctx, c.platform, c.sessionID, convertToChatMessage(msg))
+}
+
+// handleCommandProgress handles command progress events
+// Implements EventTypeCommandProgress per spec
+func (c *StreamCallback) handleCommandProgress(data any) error {
+	var title string
+	var metadata map[string]any
+
+	if m, ok := data.(*event.EventWithMeta); ok {
+		title = m.EventData
+		if m.Meta != nil {
+			metadata = map[string]any{
+				"duration_ms":    m.Meta.DurationMs,
+				"total_steps":    int(m.Meta.TotalSteps),
+				"current_step":   int(m.Meta.CurrentStep),
+				"progress":       int(m.Meta.Progress),
+				"tool_name":      m.Meta.ToolName,
+				"status":         m.Meta.Status,
+				"input_summary":  m.Meta.InputSummary,
+				"output_summary": m.Meta.OutputSummary,
+			}
+		}
+	} else if s, ok := data.(string); ok {
+		title = s
+	} else {
+		title = "Processing..."
+	}
+
+	msg := &base.ChatMessage{
+		Type:    base.MessageTypeCommandProgress,
+		Content: title,
+		Metadata: map[string]any{
+			"event_type": string(provider.EventTypeCommandProgress),
+		},
+	}
+	for k, v := range metadata {
+		msg.Metadata[k] = v
+	}
+	msg.Metadata = c.mergeMetadata(msg.Metadata)
+	return c.adapters.SendMessage(c.ctx, c.platform, c.sessionID, convertToChatMessage(msg))
+}
+
+// handleCommandComplete handles command completion events
+// Implements EventTypeCommandComplete per spec
+func (c *StreamCallback) handleCommandComplete(data any) error {
+	var title string
+	var metadata map[string]any
+
+	if m, ok := data.(*event.EventWithMeta); ok {
+		title = m.EventData
+		if m.Meta != nil {
+			metadata = map[string]any{
+				"duration_ms":       m.Meta.DurationMs,
+				"total_duration_ms": m.Meta.TotalDurationMs,
+				"completed_steps":   int(m.Meta.CurrentStep),
+				"total_steps":       int(m.Meta.TotalSteps),
+				"tool_name":         m.Meta.ToolName,
+				"status":            m.Meta.Status,
+				"input_tokens":      int(m.Meta.InputTokens),
+				"output_tokens":     int(m.Meta.OutputTokens),
+			}
+		}
+	} else if s, ok := data.(string); ok {
+		title = s
+	} else {
+		title = "Command completed"
+	}
+
+	msg := &base.ChatMessage{
+		Type:    base.MessageTypeCommandComplete,
+		Content: title,
+		Metadata: map[string]any{
+			"event_type": string(provider.EventTypeCommandComplete),
+		},
+	}
+	for k, v := range metadata {
+		msg.Metadata[k] = v
+	}
+	msg.Metadata = c.mergeMetadata(msg.Metadata)
+	return c.adapters.SendMessage(c.ctx, c.platform, c.sessionID, convertToChatMessage(msg))
+}
+
+// handleSystem handles system-level messages
+// Implements EventTypeSystem per spec - uses context block for low visual weight
+func (c *StreamCallback) handleSystem(data any) error {
+	var content string
+
+	if m, ok := data.(*event.EventWithMeta); ok {
+		content = m.EventData
+	} else if s, ok := data.(string); ok {
+		content = s
+	} else {
+		return nil
+	}
+
+	msg := &base.ChatMessage{
+		Type:    base.MessageTypeSystem,
+		Content: content,
+		Metadata: map[string]any{
+			"event_type": string(provider.EventTypeSystem),
+		},
+	}
+	msg.Metadata = c.mergeMetadata(msg.Metadata)
+	return c.adapters.SendMessage(c.ctx, c.platform, c.sessionID, convertToChatMessage(msg))
+}
+
+// handleUser handles user message reflection
+// Implements EventTypeUser per spec
+func (c *StreamCallback) handleUser(data any) error {
+	var content string
+
+	if m, ok := data.(*event.EventWithMeta); ok {
+		content = m.EventData
+	} else if s, ok := data.(string); ok {
+		content = s
+	} else {
+		return nil
+	}
+
+	msg := &base.ChatMessage{
+		Type:    base.MessageTypeUser,
+		Content: content,
+		Metadata: map[string]any{
+			"event_type": string(provider.EventTypeUser),
+		},
+	}
+	msg.Metadata = c.mergeMetadata(msg.Metadata)
+	return c.adapters.SendMessage(c.ctx, c.platform, c.sessionID, convertToChatMessage(msg))
+}
+
+// handleStepStart handles step start events (OpenCode specific)
+// Implements EventTypeStepStart per spec
+func (c *StreamCallback) handleStepStart(data any) error {
+	var content string
+	var metadata map[string]any
+
+	if m, ok := data.(*event.EventWithMeta); ok {
+		content = m.EventData
+		if m.Meta != nil {
+			metadata = map[string]any{
+				"step":          int(m.Meta.CurrentStep),
+				"total":         int(m.Meta.TotalSteps),
+				"duration_ms":   m.Meta.DurationMs,
+				"tool_name":     m.Meta.ToolName,
+				"input_summary": m.Meta.InputSummary,
+			}
+		}
+	} else if s, ok := data.(string); ok {
+		content = s
+	} else {
+		content = "Starting step..."
+	}
+
+	msg := &base.ChatMessage{
+		Type:    base.MessageTypeStepStart,
+		Content: content,
+		Metadata: map[string]any{
+			"event_type": string(provider.EventTypeStepStart),
+		},
+	}
+	for k, v := range metadata {
+		msg.Metadata[k] = v
+	}
+	msg.Metadata = c.mergeMetadata(msg.Metadata)
+	return c.adapters.SendMessage(c.ctx, c.platform, c.sessionID, convertToChatMessage(msg))
+}
+
+// handleStepFinish handles step finish events (OpenCode specific)
+// Implements EventTypeStepFinish per spec
+func (c *StreamCallback) handleStepFinish(data any) error {
+	var content string
+	var metadata map[string]any
+
+	if m, ok := data.(*event.EventWithMeta); ok {
+		content = m.EventData
+		if m.Meta != nil {
+			metadata = map[string]any{
+				"step":           int(m.Meta.CurrentStep),
+				"total":          int(m.Meta.TotalSteps),
+				"duration_ms":    m.Meta.DurationMs,
+				"tool_name":      m.Meta.ToolName,
+				"status":         m.Meta.Status,
+				"output_summary": m.Meta.OutputSummary,
+			}
+		}
+	} else if s, ok := data.(string); ok {
+		content = s
+	} else {
+		content = "Step completed"
+	}
+
+	msg := &base.ChatMessage{
+		Type:    base.MessageTypeStepFinish,
+		Content: content,
+		Metadata: map[string]any{
+			"event_type": string(provider.EventTypeStepFinish),
+		},
+	}
+	for k, v := range metadata {
+		msg.Metadata[k] = v
+	}
+	msg.Metadata = c.mergeMetadata(msg.Metadata)
+	return c.adapters.SendMessage(c.ctx, c.platform, c.sessionID, convertToChatMessage(msg))
+}
+
+// handleRaw handles raw/unparsed output
+// Implements EventTypeRaw per spec - shows only type and length
+func (c *StreamCallback) handleRaw(data any) error {
+	var content string
+
+	if m, ok := data.(*event.EventWithMeta); ok {
+		content = m.EventData
+	} else if s, ok := data.(string); ok {
+		content = s
+	} else {
+		return nil
+	}
+
+	msg := &base.ChatMessage{
+		Type:    base.MessageTypeRaw,
+		Content: content,
+		Metadata: map[string]any{
+			"event_type": string(provider.EventTypeRaw),
 		},
 	}
 	msg.Metadata = c.mergeMetadata(msg.Metadata)
@@ -614,6 +886,10 @@ func (c *StreamCallback) copyMessageMetadata() map[string]any {
 		}
 		if messageID, ok := c.metadata["message_id"]; ok {
 			metadata["message_id"] = messageID
+		}
+		// Include message_ts for reaction updates and message tracking
+		if messageTS, ok := c.metadata["message_ts"]; ok {
+			metadata["message_ts"] = messageTS
 		}
 	}
 	return metadata
@@ -791,7 +1067,9 @@ func (s *StreamState) updateThrottled(ctx context.Context, adapters *AdapterMana
 		s.mu.Unlock()
 		return nil
 	}
-	s.LastUpdated = time.Time{} // Mark as updating
+	// Set timestamp immediately to prevent race condition
+	// Other goroutines will be throttled while we're sending
+	s.LastUpdated = time.Now()
 	s.mu.Unlock()
 
 	// Add thread_ts and channel_id if present in metadata
@@ -924,6 +1202,144 @@ func (c *StreamCallback) handleAskUserQuestion(data any) error {
 		Content: question,
 		Metadata: map[string]any{
 			"event_type": string(provider.EventTypeAskUserQuestion),
+		},
+	}
+	msg.Metadata = c.mergeMetadata(msg.Metadata)
+	return c.adapters.SendMessage(c.ctx, c.platform, c.sessionID, convertToChatMessage(msg))
+}
+
+// =============================================================================
+// Session Start / Engine Starting / User Message Received Event Handlers
+// =============================================================================
+
+// handleSessionStart handles session start events (cold start)
+// Implements EventTypeSessionStart per spec (0.4)
+// Triggered when user sends first message or CLI needs cold start
+func (c *StreamCallback) handleSessionStart(data any) error {
+	var content string
+
+	if m, ok := data.(*event.EventWithMeta); ok {
+		content = m.EventData
+	} else if s, ok := data.(string); ok {
+		content = s
+	} else {
+		content = "Initializing AI assistant..."
+	}
+
+	// Get session ID from callback
+	sessionID := c.sessionID
+
+	msg := &base.ChatMessage{
+		Type:    base.MessageTypeSessionStart,
+		Content: content,
+		Metadata: map[string]any{
+			"event_type": string(provider.EventTypeSessionStart),
+			"session_id": sessionID,
+		},
+	}
+	msg.Metadata = c.mergeMetadata(msg.Metadata)
+	return c.adapters.SendMessage(c.ctx, c.platform, c.sessionID, convertToChatMessage(msg))
+}
+
+// handleEngineStarting handles engine starting events (CLI cold start in progress)
+// Implements EventTypeEngineStarting per spec (0.5)
+// Triggered during CLI cold start when engine is being initialized
+func (c *StreamCallback) handleEngineStarting(data any) error {
+	var content string
+
+	if m, ok := data.(*event.EventWithMeta); ok {
+		content = m.EventData
+	} else if s, ok := data.(string); ok {
+		content = s
+	} else {
+		content = "Engine starting..."
+	}
+
+	msg := &base.ChatMessage{
+		Type:    base.MessageTypeEngineStarting,
+		Content: content,
+		Metadata: map[string]any{
+			"event_type": string(provider.EventTypeEngineStarting),
+		},
+	}
+	msg.Metadata = c.mergeMetadata(msg.Metadata)
+	return c.adapters.SendMessage(c.ctx, c.platform, c.sessionID, convertToChatMessage(msg))
+}
+
+// handleUserMessageReceived handles user message received acknowledgment
+// Implements EventTypeUserMessageReceived per spec (0.6)
+// Triggered immediately after user message is received
+func (c *StreamCallback) handleUserMessageReceived(data any) error {
+	// This event is typically sent before processing begins
+	// to acknowledge receipt of user message with minimal latency
+
+	msg := &base.ChatMessage{
+		Type:    base.MessageTypeUserMessageReceived,
+		Content: "",
+		Metadata: map[string]any{
+			"event_type": string(provider.EventTypeUserMessageReceived),
+		},
+	}
+	msg.Metadata = c.mergeMetadata(msg.Metadata)
+	return c.adapters.SendMessage(c.ctx, c.platform, c.sessionID, convertToChatMessage(msg))
+}
+
+// handlePermissionRequest handles permission request events
+// Implements EventTypePermissionRequest per spec (7)
+// Triggered when Claude Code requests user approval for tool execution
+func (c *StreamCallback) handlePermissionRequest(data any) error {
+	var req *provider.PermissionRequest
+	var messageID string
+
+	switch v := data.(type) {
+	case *provider.PermissionRequest:
+		req = v
+		if req != nil {
+			messageID = req.MessageID
+		}
+	case *event.EventWithMeta:
+		// Try to parse EventData as PermissionRequest
+		if v.EventData != "" {
+			parsed, err := provider.ParsePermissionRequest([]byte(v.EventData))
+			if err == nil {
+				req = parsed
+				messageID = parsed.MessageID
+			}
+		}
+		// Also check Meta for tool info if parsing failed
+		if req == nil && v.Meta != nil {
+			// Create a synthetic request from metadata
+			req = &provider.PermissionRequest{
+				MessageID: c.sessionID + "-" + time.Now().Format("20060102150405"),
+			}
+			if v.Meta.ToolName != "" {
+				messageID = c.sessionID + "-" + v.Meta.ToolID
+			}
+		}
+	default:
+		c.logger.Debug("Unknown permission request data type", "type", fmt.Sprintf("%T", data))
+		return nil
+	}
+
+	if req == nil {
+		c.logger.Debug("Empty permission request, skipping")
+		return nil
+	}
+
+	// Get tool and input for display
+	tool, input := req.GetToolAndInput()
+
+	msg := &base.ChatMessage{
+		Type:    base.MessageTypePermissionRequest,
+		Content: "", // Content is built by MessageBuilder from metadata
+		Metadata: map[string]any{
+			"event_type": string(provider.EventTypePermissionRequest),
+			"tool_name":  tool,
+			"input":      input,
+			"message_id": messageID,
+			"session_id": c.sessionID,
+			"decision":   req.Decision,
+			"reason":     req.GetDescription(),
 		},
 	}
 	msg.Metadata = c.mergeMetadata(msg.Metadata)
