@@ -46,6 +46,7 @@ release_notes_*.txt
 docs/images/png/
 
 # Documentation Site (Generated)
+.loki
 /docs-site/**/*.md
 !/docs-site/index.md
 !/docs-site/README.md
