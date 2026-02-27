@@ -126,10 +126,7 @@ func (a *Adapter) registerCommands() {
 
 	// Get workDir from config or use default (empty string will use os.Getwd() in executor)
 	workDir := ""
-	if a.config != nil {
-		// TODO: Add WorkDir to Config if needed
-		// workDir = a.config.WorkDir
-	}
+	_ = workDir // reserved for future config.WorkDir
 
 	// Register /reset command
 	a.cmdRegistry.Register(command.NewResetExecutor(a.eng, workDir))
@@ -584,7 +581,9 @@ func (a *Adapter) startSocketMode(ctx context.Context) {
 	// Run Socket Mode client
 	go func() {
 		defer panicx.Recover(a.Logger(), "Slack Socket Mode Run")
-		a.socketModeClient.RunContext(a.socketModeCtx)
+		if err := a.socketModeClient.RunContext(a.socketModeCtx); err != nil {
+			a.Logger().Error("Socket Mode client error", "error", err)
+		}
 	}()
 
 	a.Logger().Info("Socket Mode started")
