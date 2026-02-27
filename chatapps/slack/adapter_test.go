@@ -26,7 +26,7 @@ func generateSignature(secret, timestamp, body string) string {
 }
 
 // createTestRequest creates an http.Request with Slack signature headers for testing
-func createTestRequest(t *testing.T, timestamp, signature string, body []byte) *http.Request {
+func createTestRequest(_ *testing.T, timestamp, signature string, body []byte) *http.Request {
 	req := httptest.NewRequest(http.MethodPost, "/events", bytes.NewReader(body))
 	req.Header.Set("X-Slack-Signature", signature)
 	req.Header.Set("X-Slack-Request-Timestamp", timestamp)
