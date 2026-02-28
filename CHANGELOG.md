@@ -11,12 +11,12 @@ This maintenance release focuses on system reliability, concurrency safety, and 
 - **Initialization Synchronization** - New 500ms buffering logic in `ZoneOrderProcessor` ensures "Starting session" messages always appear at the top during cold starts.
 
 ### Fixed
-- **Critical Concurrency Hardening** - 全面审计并加固了 `chatapps` 包下的所有 Mutex 使用，引入 `defer` 模式防止高并发下的锁泄露。
-- **Memory Leak Prevention** - 实现了 `ResetSession` 生命周期钩子，确保会话结束后彻底清理缓冲区与同步状态。
-- **Build & Variable Safety** - 修复了 `dingtalk` 适配器中的变量重声明与作用域问题。
+- **Critical Concurrency Hardening** - Performed a full audit and hardening of all Mutex usage in the `chatapps` package, introducing `defer` patterns to prevent lock leakage under high concurrency.
+- **Memory Leak Prevention** - Implemented `ResetSession` lifecycle hooks to ensure buffers and synchronization states are thoroughly cleaned up after session completion.
+- **Build & Variable Safety** - Fixed variable re-declaration and scope issues in the `dingtalk` adapter.
 
 ### Changed
-- **Slack UX Polish** - 简化了会话启动消息中的 ID 展示，将工具执行失败图标由 `:x:` 升级为更专业的 `:warning:`。
+- **Slack UX Polish** - Simplified the Session ID display in initialization messages and upgraded the tool failure icon from `:x:` to a more professional `:warning:`.
 
 ---
 
