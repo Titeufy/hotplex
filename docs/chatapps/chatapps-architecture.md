@@ -1,6 +1,6 @@
 # ChatApps 接入层：架构协议与集成规范
 
-HotPlex ChatApps 接入层是系统与外部通讯生态集成的核心协议层。它将 HotPlex 引擎的能力抽象为 **ChatApps-as-a-Service**，通过标准化的适配器模式实现不同平台（Slack, Telegram, 钉钉等）的无缝接入。
+HotPlex ChatApps 接入层是系统与外部通讯生态集成的核心协议层。它将 HotPlex 引擎的能力抽象为 **ChatApps-as-a-Service**，通过标准化的适配器模式与 **插件化消息处理流水线 (Processor Chain)** 实现不同平台（Slack, Telegram, 钉钉等）的无缝接入。
 
 ---
 
@@ -8,20 +8,22 @@ HotPlex ChatApps 接入层是系统与外部通讯生态集成的核心协议层
 
 ### 1.1 设计哲学
 - **抽象解耦**：抽象统一的 `ChatAdapter` 接口，屏蔽各通讯平台 API 的巨大差异。
+- **插件化流水线**：引入 `ProcessorChain`，将消息过滤、频率限制、聚合、格式转换等逻辑解耦为独立处理器。
 - **状态隔离**：基于 `Platform-User-Session` 的三维隔离机制，确保多用户环境下 Agent 状态的绝对安全性。
-- **流式响应**：深度适配 Agent 的流式输出，支持亚秒级的实时反馈。
+- **流式响应**：深度适配 Agent 的流式输出，支持亚秒级的实时反馈与 UI 节流。
 
 ### 1.2 系统拓扑
 ![ChatApps Architecture](../images/chatapps-architecture.svg)
 
 ### 1.3 关键组件定义
 
-| 组件                 | 技术定位     | 核心职责                                                             |
-| :------------------- | :----------- | :------------------------------------------------------------------- |
-| **AdapterManager**   | 控制面中心   | 管理所有活跃适配器的生命周期，分发上行消息至引擎。                   |
-| **ChatAdapter**      | 协议转换层   | 负责特定平台的协议封装（如 WebSocket Gateway vs Webhook）。          |
-| **EngineHandler**    | 业务逻辑桥接 | 订阅 Engine 事件流，将其转化为平台特定的富文本（Blocks/Cards）。     |
-| **Session Registry** | 状态管理器   | 维护外部平台 `UserID` 与内部 `SessionID` 及 `WorkDir` 的持久化映射。 |
+| 组件                 | 技术定位   | 核心职责                                                             |
+| :------------------- | :--------- | :------------------------------------------------------------------- |
+| **AdapterManager**   | 控制面中心 | 管理所有活跃适配器的生命周期，分发上行消息至引擎。                   |
+| **ChatAdapter**      | 平台适配层 | 负责特定平台的协议封装（如 WebSocket Gateway vs Webhook）。          |
+| **ProcessorChain**   | 逻辑流水线 | 顺序执行一系列处理器，完成从事件到平台特定消息转换的全过程。         |
+| **EngineHandler**    | 事件订阅层 | 监听 Engine 事件流，生成标准化的 `ChatMessage` 并推入流水线。        |
+| **Session Registry** | 状态管理器 | 维护外部平台 `UserID` 与内部 `SessionID` 及 `WorkDir` 的持久化映射。 |
 
 ---
 
@@ -32,139 +34,118 @@ HotPlex ChatApps 接入层是系统与外部通讯生态集成的核心协议层
 
 ```go
 type ChatAdapter interface {
-    // Identity & Lifecycle
     Platform() string           // 返回平台全局唯一标识
+    SystemPrompt() string       // 获取平台预设的系统提示词
     Start(ctx context.Context) error
     Stop() error
     
     // Message Exchange
-    // SendMessage: 异步下行，支持更新现有消息（用于流式 Thinking）
     SendMessage(ctx context.Context, sessionID string, msg *ChatMessage) error
-    
-    // HandleMessage: 同步上行回调，适配器在此完成 Payload 预处理
     HandleMessage(ctx context.Context, msg *ChatMessage) error
+    SetHandler(MessageHandler)  // 设置上行消息处理器
 }
 ```
 
 ### 2.2 统一消息模型 `ChatMessage`
 ```go
 type ChatMessage struct {
+    Type        MessageType       // 消息类型，用于渲染决策
     Platform    string            // 平台标识
     SessionID   string           // 系统生成的会话唯一 ID
     UserID      string           // 平台侧原生 UserID
     Content     string           // 标准化 Markdown 文本
     MessageID   string           // 平台消息回执 ID (用于 Reply-to 链)
-    Metadata    map[string]any   // 平台私有扩展字段
-    RichContent *RichContent     // 多模态 UI 定义 (Blocks, Cards, Buttons)
+    Timestamp   time.Time        // 消息生成时间
+    Metadata    map[string]any   // 平台/处理器私有扩展字段
+    RichContent *RichContent     // 多模态 UI 定义 (Blocks, Cards, Buttons, Reactions)
 }
 ```
 
 ---
 
-## 3. 消息生命周期流转 (Data Flow)
+## 3. 消息处理流水线 (Message Processor Pipeline)
 
-### 3.1 预处理与分发 (Ingress)
-1. **Payload 归一化**：适配器捕获原始 HTTP Webhook 或 Socket 事件。
-2. **身份解析**：从 Payload 提取原生 UID，并向 `Session Registry` 请求关联的 `SessionContext`。
-3. **指令投影**：将文本消息映射为 `Engine.Execute` 调用。
+为了提供极致的交互体验并规避各平台的频率限制，消息在下行至适配器前会经过 `ProcessorChain`：
 
-### 3.2 响应流编排 (Egress)
-1. **事件订阅**：`EngineHandler` 监听 `internal/engine` 输出。
-2. **差异化渲染**：
-    - **Slack**: 映射为 `Section` 和 `Context` Blocks。
-    - **Telegram**: 转换为 `MarkdownV2` 并处理转义字符。
-    - **钉钉**: 构建 `ActionCard` JSON。
-3. **节流更新 (Throttling)**：对于 SSE 流式输出，适配器层执行 500ms-1s 的 UI 节流，避免触碰平台 Rate Limit。
+### 3.1 处理器顺序 (Processing Order)
+
+| 处理器             | 职责           | 代表性逻辑                                                               |
+| :----------------- | :------------- | :----------------------------------------------------------------------- |
+| **1. Filter**      | 噪音过滤       | 丢弃如 `step_start`/`step_finish` 等对终端用户不必要的原始事件。         |
+| **2. RateLimit**   | 接入频率控制   | 确保同一会话的更新频率不超过平台阈值（如 Slack 1s/次）。                 |
+| **3. ZoneOrder**   | 分区时序控制   | 强制消息按 `思考 -> 行动 -> 输出 -> 总结` 的顺序展示，防止流式输出乱序。 |
+| **4. Thread**      | 线程上下文维护 | 自动关联 `thread_ts`，确保同一个 Turn 的消息聚类在一个回复链中。         |
+| **5. Aggregator**  | 智能聚合       | 将多个微小的工具调用（tool_use）聚合为一个 UI Block，避免消息刷屏。      |
+| **6. RichContent** | 富文本增强     | 处理 Reaction 点赞、交互式按钮、附件图片等。                             |
+| **7. Format**      | 平台格式转换   | 将 Markdown 转换为 Slack mrkdwn, Telegram HTML, 或钉钉 ActionCard。      |
+| **8. Chunk**       | 长文本切片     | 突破平台单条消息长度限制（如 Slack 4000 字符），自动分段发送。           |
+
+### 3.2 区域化交互 (Zone-based Interaction)
+下行消息依据 `ZoneIndex` 被划分为四个核心交互区：
+
+- **Zone 0: Thinking (思考区)** - 显示 Agent 的内部推导、计划生成。
+- **Zone 1: Action (行动区)** - 显示工具调用过程、命令执行进度、权限申请。
+- **Zone 2: Output (展示区)** - AI 最终回答、用户提问确认、错误告警。
+- **Zone 3: Summary (总结区)** - Turn 结束后的消耗统计（Tokens/Time/Cost）。
 
 ---
 
 ## 4. 平台集成矩阵 (Integration Matrix)
 
-| 平台         | 联通协议                  | 交互分级             | 架构优势                                             |
-| :----------- | :------------------------ | :------------------- | :--------------------------------------------------- |
-| **Slack**    | **Socket Mode**           | L3 (Block Kit)       | **首选方案**：免外网穿透，支持复杂交互与线程自动化。 |
-| **Telegram** | Bot API (Polling/Webhook) | L2 (Inline Keyboard) | **响应最快**：API 限制最少，适合极简个人助手。       |
-| **钉钉**     | Webhook / Callback        | L2 (ActionCard)      | **合规首选**：企业内隔离，支持长文本智能分片逻辑。   |
-| **Discord**  | WebSocket Gateway         | L3 (Embeds)          | **社区化**：支持高性能多节点 Sharding 分片方案。     |
+| 平台         | 联通协议                  | 交互分级             | 架构优势                                                   |
+| :----------- | :------------------------ | :------------------- | :--------------------------------------------------------- |
+| **Slack**    | **Socket Mode**           | L3 (Block Kit)       | **旗舰体验**：支持流式局部更新、复杂交互组件与线程自动化。 |
+| **Telegram** | Bot API (Polling/Webhook) | L2 (Inline Keyboard) | **响应最快**：API 限制最少，支持 MarkdownV2 高级渲染。     |
+| **钉钉**     | Webhook / Callback        | L2 (ActionCard)      | **企业增强**：支持 ActionCard 交互，适配企业内网环境。     |
+| **WhatsApp** | Cloud API (Webhook)       | L1 (Interactive)     | **广泛触达**：支持按钮模板，适合高并发移动端场景。         |
+| **Discord**  | WebSocket Gateway         | L3 (Embeds)          | **社区化**：支持高性能多节点 Sharding 分片方案。           |
 
 ---
 
-## 5. 安全架构与多租户隔离 (Security & Isolation)
+## 5. 安全架构与隔离 (Security & Isolation)
 
 ### 5.1 会话亲和性
 系统通过以下公式生成全局会话 ID，确保跨平台唯一：
-`SHA256(Platform + AccountID + ChannelID)`
+`UUID5(Platform + UserID + BotID + ChannelID)`
 
-### 5.2 进程级沙箱
-当 `AdapterManager` 触发任务时：
-1. **PGID 绑定**：为该 User 创建独立的进程组 ID，强制资源限制（Cgroups）。
-2. **FS Chroot**：文件系统访问限制在由 `Session Registry` 分配的专用 `work_dir`。
-3. **流量审计**：所有下行至适配器的消息均经过 `SafetyManager` 的敏感词与注入检测。
+### 5.2 资源沙箱
+1. **FS Chroot**：文件系统访问限制在由 `Session Registry` 分配的专用 `work_dir`。
+2. **进程隔离**：每个 Session 对应独立的 Engine 实例，关键任务在隔离进程组运行。
+3. **敏感审计**：所有下行消息均经过注入检测，防止敏感信息通过适配器泄漏给终端平台。
 
 ---
 
 ## 6. 事件类型映射 (Event Types)
 
-### 6.1 支持的事件类型
+HotPlex 定义了 21 种标准事件类型：
 
-HotPlex Engine 定义了 21 种事件类型，全部已在 Slack 平台实现：
-
-| 事件类型                | 说明         | Block 类型              | 状态 |
-| ----------------------- | ------------ | ----------------------- | ---- |
-| `thinking`              | AI 推理中    | context                 | ✅    |
-| `answer`                | AI 文本输出  | section                 | ✅    |
-| `tool_use`              | 工具调用开始 | section                 | ✅    |
-| `tool_result`           | 工具执行结果 | section                 | ✅    |
-| `error`                 | 错误发生     | section                 | ✅    |
-| `result`                | Turn 完成    | section+context         | ✅    |
-| `plan_mode`             | 计划生成中   | context                 | ✅    |
-| `exit_plan_mode`        | 请求批准计划 | header+actions          | ✅    |
-| `ask_user_question`     | 询问用户问题 | section+actions         | ✅    |
-| `permission_request`    | 权限请求     | header+actions          | ✅    |
-| `danger_block`          | 危险操作拦截 | section+actions         | ✅    |
-| `command_progress`      | 命令执行进度 | section+context+actions | ✅    |
-| `command_complete`      | 命令执行完成 | section+context         | ✅    |
-| `session_start`         | 会话启动     | section+context         | ✅    |
-| `engine_starting`       | 引擎启动中   | context                 | ✅    |
-| `user_message_received` | 消息已收到   | context                 | ✅    |
-| `system`                | 系统级消息   | context                 | ✅    |
-| `user`                  | 用户消息反射 | section+context         | ✅    |
-| `step_start`            | 步骤开始     | section+context         | ✅    |
-| `step_finish`           | 步骤完成     | section+context         | ✅    |
-| `raw`                   | 原始输出     | section                 | ✅    |
-
-### 6.2 数据流架构
-
-```
-Engine Event (provider/event.go)
-    │
-    ▼
-StreamCallback.Handle() (engine_handler.go)
-    │
-    ▼
-handleXxx() → base.ChatMessage{Type: MessageTypeXxx}
-    │
-    ▼
-AdapterManager.SendMessage()
-    │
-    ▼
-Adapter.defaultSender() (adapter.go)
-    │
-    ▼
-MessageBuilder.Build(msg) (builder.go)
-    │
-    ▼
-BuildXxxMessage() → []slack.Block
-    │
-    ▼
-slack.Client.PostMessageContext()
-    │
-    ▼
-Slack Channel
-```
+| 事件类型                | 所属 Zone | 状态 | 渲染建议                            |
+| :---------------------- | :-------- | :--- | :---------------------------------- |
+| `thinking`              | Thinking  | ✅    | Context Block + Loading Animation   |
+| `plan_mode`             | Thinking  | ✅    | Blockquotes / Collapsible           |
+| `tool_use`              | Action    | ✅    | Code Snippet + Icon (e.g. 🛠️)        |
+| `tool_result`           | Action    | ✅    | Log Container (Auto-scroll)         |
+| `answer`                | Output    | ✅    | Main Message Body (Streaming)       |
+| `error`                 | Output    | ✅    | Warning Alert Block                 |
+| `danger_block`          | Action    | ✅    | Interactive Modal / Buttons         |
+| `session_stats`         | Summary   | ✅    | Metadata Section (Small Text)       |
+| `permission_request`    | Action    | ✅    | Header + Approve/Reject Buttons     |
+| `exit_plan_mode`        | Output    | ✅    | Plan Summary + Confirmation Actions |
+| `ask_user_question`     | Output    | ✅    | Highlighted Question + Input Field  |
+| `command_progress`      | Action    | ✅    | ProgressBar / Dynamic Context Block |
+| `command_complete`      | Action    | ✅    | Success Icon + Execution Summary    |
+| `session_start`         | Action    | ✅    | Welcome Banner / Cold Start Info    |
+| `engine_starting`       | Action    | ✅    | Initialization Status Context       |
+| `user_message_received` | Action    | ✅    | Acknowledgment Receipt              |
+| `system`                | Action    | ✅    | System Event Notification (Context) |
+| `user`                  | Action    | ✅    | User Message Reflection (Mirror)    |
+| `step_start`            | Action    | ✅    | Milestone Header (OpenCode)         |
+| `step_finish`           | Action    | ✅    | Completion Milestone (OpenCode)     |
+| `raw`                   | Output    | ✅    | Unformatted Raw Output Fallback     |
 
 ---
 
 ## 7. 相关文档 (Reference)
-- [Slack 架构深度解析](./chatapps-slack.md)
-- [Slack UX 规范](./slack-block-mapping.md)
+- [Slack 接口映射规范](./slack-block-mapping.md)
+- [交互中心设计详情](./interaction-manager.md)
+- [事件聚合算法规格](../engine/event-aggregation.md)

@@ -1,10 +1,16 @@
-# Slack 模块架构图
+# Slack 模块架构与 UX 深度规范
 
-## 完整架构图（Socket Mode + HTTP Mode）
+本指南定义了 HotPlex Slack 适配器的技术架构、处理器流水线以及 21 种事件类型的详尽渲染规范。
 
-```
+---
+
+## 1. 系统架构图
+
+### 1.1 完整拓扑（Socket Mode + HTTP Mode）
+
+```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                        Slack 模块完整架构                                     │
+│                        Slack 模块完整交互架构                                 │
 └──────────────────────────────────────────────────────────────────────────────┘
 
                     ┌─────────────────┐
@@ -15,70 +21,40 @@
                     │ • 点击按钮      │
                     └────────┬────────┘
                              │
-         ┌───────────────────┼───────────────────┐
-         │                   │                   │
-         ▼                   ▼                   ▼
+          ┌───────────────────┼───────────────────┐
+          │                   │                   │
+          ▼                   ▼                   ▼
 ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
 │  Socket Mode    │ │   HTTP Mode     │ │  Interactive   │
 │  (WebSocket)   │ │  (Webhook)      │ │  (Callback)    │
 └────────┬────────┘ └────────┬────────┘ └────────┬────────┘
-         │                   │                   │
-         └───────────────────┼───────────────────┘
-                             │
-                             ▼
+          │                   │                   │
+          └───────────────────┼───────────────────┘
+                              │
+                              ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                        adapter.go                                           │
 │  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │  NewAdapter(config)                                                 │    │
-│  │    ├─ config.Mode == "socket" → socketmode.New(client)            │    │
-│  │    └─ config.Mode == "http"  → 注册 HTTP handlers                  │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                                                              │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │  Start(ctx)                                                        │    │
-│  │    ├─ Socket Mode: startSocketMode(ctx) → client.RunContext(ctx)  │    │
-│  │    └─ HTTP Mode:    adapter.Start(ctx) → HTTP Server              │    │
+│  │  HandleEvent() / HandleInteractive()                                │    │
+│  │    ├─ 转换为统一的 base.ChatMessage                                   │    │
+│  │    └─ 路由至上下文 Session                                            │    │
 │  └─────────────────────────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────────────────────────┘
-                             │
-         ┌───────────────────┴───────────────────┐
-         │                                       │
-         ▼                                       ▼
-┌─────────────────────────┐         ┌─────────────────────────┐
-│  Socket Mode 事件处理   │         │   HTTP 事件处理        │
-│  (socketmode.Event)     │         │   (HTTP Request)       │
-├─────────────────────────┤         ├─────────────────────────┤
-│ • EventsAPI            │         │ • handleEvent()         │
-│ • SlashCommand         │         │ • handleSlashCommand()  │
-│ • Interactive          │         │ • handleInteractive()   │
-└────────────┬────────────┘         └────────────┬────────────┘
-             │                                     │
-             └───────────────────┬─────────────────┘
-                                 │
-                                 ▼
+                              │
+                              ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                        统一处理层                                           │
-│  ┌────────────────┐ ┌────────────────┐ ┌────────────────────────┐           │
-│  │ handleReset    │ │ handleDisconnect│ │ handlePermission      │           │
-│  │ Command()     │ │ Command()      │ │ Callback()           │           │
-│  └───────┬────────┘ └───────┬────────┘ └──────────┬───────────┘           │
-│          │                   │                     │                       │
-│          └───────────────────┼─────────────────────┘                       │
-│                              │                                             │
-│                              ▼                                             │
-│                    ┌─────────────────────┐                                │
-│                    │      Engine         │                                │
-│                    │  • 执行命令         │                                │
-│                    │  • 管理会话         │                                │
-│                    └──────────┬──────────┘                                │
-└───────────────────────────────┼───────────────────────────────────────────┘
+│                        Processor Chain (流水线)                             │
+│  ┌──────────┐   ┌──────────┐   ┌───────────┐   ┌────────────┐               │
+│  │ Filter   │ → │RateLimit │ → │ ZoneOrder │ → │ Aggregator │ ...           │
+│  └──────────┘   └──────────┘   └───────────┘   └────────────┘               │
+└───────────────────────────────┬──────────────────────────────────────────────┘
                                 │
                                 ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                        消息响应层                                           │
+│                        消息响应层 (Rendering)                               │
 │  ┌────────────────┐ ┌────────────────┐ ┌────────────────────────┐           │
 │  │ builder.go     │ │ formatting.go  │ │ chunker.go            │           │
-│  │ (构建消息)     │ │ (格式转换)     │ │ (消息分块)            │           │
+│  │ (渲染 Blocks)   │ │ (Markdown转换) │ │ (消息分页)            │           │
 │  └───────┬────────┘ └───────┬────────┘ └──────────┬───────────┘           │
 │          │                   │                     │                       │
 │          └───────────────────┼─────────────────────┘                       │
@@ -94,186 +70,95 @@
 
 ---
 
-## 两种运行模式
+## 2. 设计哲学与平台约束
 
-### Socket Mode (推荐)
+### 2.1 UX 核心原则
+- **即时反馈**：Thinking、Error 等关键事件立即发送，不进入聚合逻辑。
+- **流式更新 (Streaming)**：对于 `answer`/`plan_mode`，使用 `chat.update` API 节流更新（建议频率 1s/次）。
+- **智能聚合 (Aggregation)**：多个微小的工具调用（tool_use）在 500ms 窗口内聚合，避免 UI 刷屏。
+- **低干扰模式**：系统级与日志信息使用 `context block` 或 `fields` 布局，降低视觉权重。
 
-- **连接方式**: WebSocket 长连接
-- **优点**:
-  - 不需要公网地址
-  - 不需要验证签名
-  - 适合本地调试和企业内网
-- **配置**:
-  ```yaml
-  mode: socket
-  app_token: xapp-xxxx-xxxx-xxxx-xxxx
-  bot_token: xoxb-xxxx-xxxx-xxxx-xxxx
-  ```
-
-### HTTP Mode (传统)
-
-- **连接方式**: HTTP Webhook
-- **优点**:
-  - 稳定可靠
-  - 适合生产环境
-- **配置**:
-  ```yaml
-  mode: http
-  signing_secret: xxxxx
-  bot_token: xoxb-xxxx-xxxx-xxxx-xxxx
-  ```
+### 2.2 Slack 平台硬限制
+| 限制项                | 数值     | 处理策略                                   |
+| :-------------------- | :------- | :----------------------------------------- |
+| 单消息最大字符数      | 4000     | 启用 `ChunkProcessor` 自动切片             |
+| 单消息最大 Blocks 数  | 50       | 启用 `AggregationProcessor` 限制展示数量   |
+| `chat.update` 频率    | ~1 次/秒 | 实现 `RateLimitProcessor` 进行客户端节流   |
+| 按钮 `action_id` 长度 | 255 字符 | 使用 `{Type}:{SessionID}:{MsgID}` 紧凑编码 |
 
 ---
 
-## 文件清单
+## 3. 交互分层架构 (Zone Architecture)
 
-| 文件 | 状态 | 职责 |
-|------|------|------|
-| `adapter.go` | ✅ 保留 | 核心适配器，支持 Socket Mode 和 HTTP Mode |
-| `builder.go` | ✅ 保留 | MessageBuilder，消息构建 |
-| `config.go` | ✅ 保留 | 配置管理 |
-| `formatting.go` | ✅ 保留 | MrkdwnFormatter，格式转换 |
-| `security.go` | ✅ 保留 | 安全验证 |
-| `validator.go` | ✅ 保留 | Block Kit 验证 |
-| `chunker.go` | ✅ 保留 | 消息分块 |
-| `blocks.go` | ✅ 保留 | Block 工具函数 |
-| `block_builder.go` | ✅ 精简 | 状态消息构建 |
-| `rate_limiter.go` | ✅ 保留 | 限流器 |
+下行消息依据逻辑功能被划分为四个功能区，由 `ZoneOrderProcessor` 保证其视觉顺序：
 
----
+### 3.1 区域定义与策略
+| 区域                  | 索引 | 包含事件                                        | 更新/清理策略                                                                            |
+| :-------------------- | :--- | :---------------------------------------------- | :--------------------------------------------------------------------------------------- |
+| **Thinking (思考区)** | 0    | `thinking`, `plan_mode`                         | **首条锚点固化**：第 1 条思考记录始终保留，后续记录采用 5 条上限的滑动窗口。             |
+| **Action (行动区)**   | 1    | `tool_use`, `tool_result`, `permission_request` | **摘要模式**：成功调用仅显示 1 行摘要；失败调用触发**内容穿透**（显示前 200 字节报错）。 |
+| **Output (展示区)**   | 2    | `answer`, `ask_user_question`, `error`          | **流式覆盖**：全文保持单消息打字机效果，超长时由 `ChunkProcessor` 负责翻页。             |
+| **Summary (总结区)**  | 3    | `session_stats`                                 | **原地更新**：Turn 结束时更新，包含耗时、Token 统计及修改的文件清单。                    |
 
-## 交互流程
-
-### 1. Slash Command 流程
-
-```
-Slack 用户 → /reset 或 /dc → adapter.handleSocketModeSlashCommand()
-                                        ↓
-                              识别命令类型
-                                        ↓
-                    ┌───────────────────┴───────────────────┐
-                    ▼                                       ▼
-         handleResetCommand()                    handleDisconnectCommand()
-                    │                                       │
-                    └───────────────────┬───────────────────┘
-                                        ▼
-                              Engine 执行命令
-                    (删除会话/终止进程)
-                                        │
-                                        ▼
-                              builder.go 构建响应
-                                        │
-                                        ▼
-                              slack.Client 发送响应
-```
-
-### 2. Event 流程 (App Mention)
-
-```
-Slack 用户 → @mention → adapter.handleAppMentionEvent()
-                                    ↓
-                          生成 SessionID
-                                    ↓
-                          构建 ChatMessage
-                                    ↓
-                          adapter.SendMessage()
-                                    │
-                                    ▼
-                              Engine 处理
-                                    │
-                                    ▼
-                          builder.go 构建响应
-                                    │
-                                    ▼
-                          slack.Client 更新消息
-```
-
-### 3. Interactive 流程 (按钮点击)
-
-```
-用户点击按钮 → adapter.handleSocketModeInteractive()
-                                    ↓
-                          解析 callback_id
-                                    ↓
-              ┌───────────────────┴───────────────────┐
-              ▼                                       ▼
-    handlePermissionCallback()              handlePlanModeCallback()
-    (perm_allow/perm_deny)                  (plan_approve/modify/cancel)
-              │                                       │
-              └───────────────────┬───────────────────┘
-                                  ▼
-                          Engine 处理请求
-                                  │
-                                  ▼
-                          builder.go 构建响应
-                                  │
-                                  ▼
-                          slack.Client 更新消息
-```
+### 3.2 运行模式比较
+- **Socket Mode**：通过 WebSocket 长连接（`xapp` token），无需公网 IP，最适合内网部署与开发调试。
+- **HTTP Mode**：通过传统 Webhook（`signing_secret`），适合公网高可用生产环境。
 
 ---
 
-## 4. Engine Event → Slack Block 映射
+## 4. 插件化消息处理流水线 (Processor Chain)
 
-### 4.1 事件处理链
+| 顺序 | 处理器名称     | 核心职责                                                         |
+| :--- | :------------- | :--------------------------------------------------------------- |
+| 1    | **Filter**     | 丢弃噪音事件（如 `system`, `user_message_received`, `raw` 等）。 |
+| 2    | **RateLimit**  | 会话级消息节流（100ms 最小间隔，1s 内最大更新 1 次）。           |
+| 3    | **ZoneOrder**  | 强制执行 Zone 0-3 的空间顺序，并标记 Zone 0 锚点。               |
+| 4    | **Thread**     | 自动发现并关联 `thread_ts` 缓存。                                |
+| 5    | **Aggregator** | 执行各区域的滑动窗口逻辑（如超过 8 个 Action 后自动剔除旧项）。  |
+| 6    | **Format**     | 将 Markdown 链接、图片、代码块转换为 `mrkdwn` 语法。             |
+| 7    | **Chunk**      | 当单条内容 > 4000 字符时，自动切分为多个 Block 发送。            |
 
-所有 Engine 事件通过 `StreamCallback.Handle()` 分发到对应的处理方法：
+---
 
-| 事件类型 | 处理方法 | MessageBuilder 方法 |
-|---------|---------|-------------------|
-| `thinking` | `handleThinking()` | `BuildThinkingMessage()` |
-| `tool_use` | `handleToolUse()` | `BuildToolUseMessage()` |
-| `tool_result` | `handleToolResult()` | `BuildToolResultMessage()` |
-| `answer` | `handleAnswer()` | `BuildAnswerMessage()` |
-| `error` | `handleError()` | `BuildErrorMessage()` |
-| `plan_mode` | `handlePlanMode()` | `BuildPlanModeMessage()` |
-| `exit_plan_mode` | `handleExitPlanMode()` | `BuildExitPlanModeMessage()` |
-| `ask_user_question` | `handleAskUserQuestion()` | `BuildAskUserQuestionMessage()` |
-| `permission_request` | `handlePermissionRequest()` | `BuildPermissionRequestMessageFromChat()` |
-| `command_progress` | `handleCommandProgress()` | `BuildCommandProgressMessage()` |
-| `command_complete` | `handleCommandComplete()` | `BuildCommandCompleteMessage()` |
-| `session_start` | `handleSessionStart()` | `BuildSessionStartMessage()` |
-| `engine_starting` | `handleEngineStarting()` | `BuildEngineStartingMessage()` |
-| `user_message_received` | `handleUserMessageReceived()` | `BuildUserMessageReceivedMessage()` |
-| `system` | `handleSystem()` | `BuildSystemMessage()` |
-| `user` | `handleUser()` | `BuildUserMessage()` |
-| `step_start` | `handleStepStart()` | `BuildStepStartMessage()` |
-| `step_finish` | `handleStepFinish()` | `BuildStepFinishMessage()` |
-| `raw` | `handleRaw()` | `BuildRawMessage()` |
-| `result` | `handleSessionStats()` | `BuildSessionStatsMessage()` |
-| `danger_block` | `handleDangerBlock()` | `BuildDangerBlockMessage()` |
+## 5. 详细渲染与交互协议
 
-### 4.2 SDK First 规范
+### 5.1 工具 Emoji 映射列表
+| 工具前缀 / 类型     | Emoji                  | 示例场景       |
+| :------------------ | :--------------------- | :------------- |
+| `Bash`              | :computer:             | 执行终端命令   |
+| `FileRead`, `Read`  | :books:                | 读取文件内容   |
+| `FileWrite`, `Edit` | :pencil:               | 修改代码或文档 |
+| `Glob`, `Search`    | :mag:                  | 文件搜索与查找 |
+| `LS`, `List`        | :file_folder:          | 列出目录结构   |
+| `Network`, `Fetch`  | :globe_with_meridians: | 访问外部 URL   |
 
-所有 Block Kit 构建使用 `slack-go` SDK 类型：
+### 5.2 交互按钮 (Interaction) 协议
+所有交互式组件的 `action_id` 遵循以下格式：`prefix:session_id:original_msg_id`。
+- **审批**：`plan_approve`, `plan_deny`, `perm_allow`, `perm_deny`
+- **控制**：`cmd_cancel`
 
+### 5.3 状态反馈 (Reactions)
+- `:inbox:` - 接收成功。
+- `:brain:` - 推理中。
+- `:white_check_mark:` - 任务成功。
+- `:x:` - 任务失败。
+
+---
+
+## 6. 开发规范 (SDK First)
+
+严禁使用 `map[string]any` 构建 Blocks。必须通过 `slack-go` SDK 提供的强类型函数：
 ```go
-// ✅ 正确：使用 SDK 类型
+// ✅ 必选示例
 section := slack.NewSectionBlock(
     slack.NewTextBlockObject(slack.MarkdownType, content, false, false),
     nil, nil,
 )
-header := slack.NewHeaderBlock(
-    slack.NewTextBlockObject(slack.PlainTextType, "Title", false, false),
-)
-btn := slack.NewButtonBlockElement("action_id", "value",
-    slack.NewTextBlockObject(slack.PlainTextType, "Button", false, false))
-
-// ❌ 禁止：使用 map[string]any
-block := map[string]any{
-    "type": "section",
-    "text": map[string]any{"type": "mrkdwn", "text": "hello"},
-}
 ```
 
 ---
 
-## 5. 相关文件
-
-| 文件 | 职责 |
-|------|------|
-| `chatapps/slack/adapter.go` | Slack 适配器，处理双向通信 |
-| `chatapps/slack/builder.go` | MessageBuilder，事件 → Block Kit 转换 |
-| `chatapps/engine_handler.go` | StreamCallback，Engine 事件处理 |
-| `chatapps/base/types.go` | MessageType 枚举定义 |
-| `provider/event.go` | ProviderEventType 枚举定义 |
+## 7. 相关参考
+- [Slack UX 事件渲染对照表 (21 种事件)](./chatapps-architecture.md#6-事件类型映射-event-types)
+- [ChatApps 接入层架构协议](./chatapps-architecture.md)
+- [Slack 机器人集成手册 (快速上手)](./chatapps-slack.md)
