@@ -36,19 +36,19 @@ func TestSessionOperationsInterface_Compliance(t *testing.T) {
 
 // MockEngine implements Engine interface for testing
 type MockEngine struct {
-	ExecuteFunc              func(ctx context.Context, cfg *types.Config, prompt string, callback event.Callback) error
-	GetSessionFunc           func(sessionID string) (Session, bool)
-	CloseFunc                func() error
-	GetSessionStatsFunc      func(sessionID string) *SessionStats
-	ValidateConfigFunc       func(cfg *types.Config) error
-	StopSessionFunc          func(sessionID string, reason string) error
-	ResetSessionProviderFunc func(sessionID string)
-	SetDangerAllowPathsFunc  func(paths []string)
+	ExecuteFunc                func(ctx context.Context, cfg *types.Config, prompt string, callback event.Callback) error
+	GetSessionFunc             func(sessionID string) (Session, bool)
+	CloseFunc                  func() error
+	GetSessionStatsFunc        func(sessionID string) *SessionStats
+	ValidateConfigFunc         func(cfg *types.Config) error
+	StopSessionFunc            func(sessionID string, reason string) error
+	ResetSessionProviderFunc   func(sessionID string)
+	SetDangerAllowPathsFunc    func(paths []string)
 	SetDangerBypassEnabledFunc func(token string, enabled bool) error
-	SetAllowedToolsFunc      func(tools []string)
-	SetDisallowedToolsFunc   func(tools []string)
-	GetAllowedToolsFunc      func() []string
-	GetDisallowedToolsFunc   func() []string
+	SetAllowedToolsFunc        func(tools []string)
+	SetDisallowedToolsFunc     func(tools []string)
+	GetAllowedToolsFunc        func() []string
+	GetDisallowedToolsFunc     func() []string
 }
 
 func (m *MockEngine) Execute(ctx context.Context, cfg *types.Config, prompt string, callback event.Callback) error {
@@ -140,10 +140,10 @@ func (m *MockEngine) GetDisallowedTools() []string {
 
 // MockMessageOperations implements MessageOperations for testing
 type MockMessageOperations struct {
-	DeleteMessageFunc   func(ctx context.Context, channelID, messageTS string) error
-	AddReactionFunc     func(ctx context.Context, reaction base.Reaction) error
-	RemoveReactionFunc  func(ctx context.Context, reaction base.Reaction) error
-	UpdateMessageFunc   func(ctx context.Context, channelID, messageTS string, msg *base.ChatMessage) error
+	DeleteMessageFunc  func(ctx context.Context, channelID, messageTS string) error
+	AddReactionFunc    func(ctx context.Context, reaction base.Reaction) error
+	RemoveReactionFunc func(ctx context.Context, reaction base.Reaction) error
+	UpdateMessageFunc  func(ctx context.Context, channelID, messageTS string, msg *base.ChatMessage) error
 }
 
 func (m *MockMessageOperations) DeleteMessage(ctx context.Context, channelID, messageTS string) error {
@@ -176,7 +176,7 @@ func (m *MockMessageOperations) UpdateMessage(ctx context.Context, channelID, me
 
 // MockSessionOperations implements SessionOperations for testing
 type MockSessionOperations struct {
-	GetSessionFunc              func(key string) (*base.Session, bool)
+	GetSessionFunc                  func(key string) (*base.Session, bool)
 	FindSessionByUserAndChannelFunc func(userID, channelID string) *base.Session
 }
 

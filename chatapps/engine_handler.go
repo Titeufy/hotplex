@@ -9,8 +9,8 @@ import (
 
 	"github.com/hrygo/hotplex/chatapps/base"
 	"github.com/hrygo/hotplex/engine"
-	intengine "github.com/hrygo/hotplex/internal/engine"
 	"github.com/hrygo/hotplex/event"
+	intengine "github.com/hrygo/hotplex/internal/engine"
 	"github.com/hrygo/hotplex/provider"
 	"github.com/hrygo/hotplex/types"
 )
@@ -517,15 +517,15 @@ func (c *StreamCallback) scheduleDeleteStartingMessage() {
 
 	time.AfterFunc(3*time.Second, func() {
 		// Use injected message operations interface (no type assertion needed)
-	if c.messageOps == nil {
-		c.logger.Debug("Message operations not supported", "platform", c.platform)
-		return
-	}
-	for _, rec := range records {
-		if err := c.messageOps.DeleteMessage(context.Background(), rec.ChannelID, rec.MessageTS); err != nil {
-			c.logger.Debug("Failed to delete starting message", "ts", rec.MessageTS, "error", err)
+		if c.messageOps == nil {
+			c.logger.Debug("Message operations not supported", "platform", c.platform)
+			return
 		}
-	}
+		for _, rec := range records {
+			if err := c.messageOps.DeleteMessage(context.Background(), rec.ChannelID, rec.MessageTS); err != nil {
+				c.logger.Debug("Failed to delete starting message", "ts", rec.MessageTS, "error", err)
+			}
+		}
 	})
 }
 
