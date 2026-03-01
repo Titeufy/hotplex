@@ -77,7 +77,7 @@ features:
   </p>
 </div>
 
-[![Architecture Overview](/images/agent-architecture.svg)](/guide/architecture)
+[![Architecture Overview](/images/topology.svg)](/guide/architecture)
 
 ---
 
