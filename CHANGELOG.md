@@ -1,5 +1,22 @@
 # CHANGELOG.md
 
+## [v0.15.6] - 2026-03-01
+
+### 🎨 Brand Asset Optimization & CI Refinement
+
+This release establishes a strict Single Source of Truth (SSOT) for branding assets and optimizes the documentation deployment pipeline.
+
+### Added
+- **Single Source of Truth (SSOT)**: Designated `docs/images/logo.svg` as the primary source for all logo-based assets across the repository.
+- **Sync Workflow**: Implemented automated synchronization logic to ensure brand consistency between documentation site assets and GitHub profile branding.
+
+### Changed
+- **Asset Generation Scripting**: Optimized `scripts/generate_assets.sh` to dynamically produce multi-format outputs (PNG, ICO, favicon) directly from SVG sources.
+- **CI/CD Optimization**: Refined the `deploy-docs.yml` workflow to efficiently handle asset generation and deployment during the documentation build process.
+- **Visual Refinement**: Improved layout and element spacing in `session-lifecycle.svg` for better readability and structural integrity.
+
+---
+
 ## [v0.15.5] - 2026-03-01
 
 ### 🏗️ Interface-Based Architecture Refactoring
