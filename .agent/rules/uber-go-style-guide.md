@@ -276,11 +276,39 @@ if !ok {
 
 ---
 
+### 11.1 Log Type Assertion Failures in Integration Code (HotPlex)
+
+When performing interface-based type assertions in integration/wiring code, **always log failures** for debugging.
+
+```go
+// ❌ Bad — silent failure, impossible to debug
+if engineSupport, ok := adapter.(base.EngineSupport); ok {
+    engineSupport.SetEngine(eng)
+}
+
+// ✅ Good — logs help identify interface mismatch issues
+if engineSupport, ok := adapter.(base.EngineSupport); ok {
+    engineSupport.SetEngine(eng)
+    logger.Debug("Engine injected", "platform", platform)
+} else {
+    logger.Warn("Adapter does not implement EngineSupport",
+        "platform", platform,
+        "adapter_type", fmt.Sprintf("%T", adapter))
+}
+```
+
+**Common assertion points requiring logs:**
+- `setup.go`: EngineSupport, WebhookProvider
+- `manager.go`: MessageOperations, SessionOperations
+- Any `adapter.(Interface)` pattern
+
+**Rationale**: Issue #99 showed that silent type assertion failures are invisible until runtime symptoms appear. Logs enable rapid diagnosis.
+
 ## Code Quality
 
 ### 12. Verify Interface Compliance at Compile Time
 
-Use compile-time checks to ensure types implement interfaces correctly.
+Use compile-time checks to ensure types implement interfaces correctly. **MANDATORY for ALL interfaces.**
 
 ```go
 // ✅ Good — compile-time verification
@@ -291,7 +319,34 @@ var _ http.Handler = (*Handler)(nil)
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {}
 ```
 
-**For HotPlex**: Add interface compliance checks for `Provider`, `Engine`, and session interfaces.
+**For HotPlex (MANDATORY)**:
+
+1. **Every interface implementation MUST have compile-time verification:**
+
+```go
+// chatapps/slack/adapter.go
+var _ base.ChatAdapter = (*Adapter)(nil)
+var _ base.EngineSupport = (*Adapter)(nil)
+var _ base.MessageOperations = (*Adapter)(nil)
+```
+
+2. **New interface definition = immediate compliance check required:**
+
+```go
+// When defining new interface:
+type EngineSupport interface {
+    SetEngine(eng *engine.Engine)
+}
+
+// Immediately add check in implementing type:
+var _ EngineSupport = (*Adapter)(nil)  // ← Mandatory
+```
+
+3. **Self-check after refactoring:**
+   - Did I define a new interface? → Add compliance check
+   - Did I modify an interface signature? → Verify all implementations compile
+
+**Rationale**: Issue #99 cost hours of debugging because `EngineSupport` interface signature (`any`) didn't match implementation (`*engine.Engine`). Compile-time check would have caught this instantly.
 
 ---
 
@@ -423,4 +478,14 @@ If you're doing something one way in one file, do it the same way throughout the
 |----------|---------------|
 | **Concurrency** | Zero-value mutexes • Defer cleanup • Channel size 0/1 • No fire-and-forget goroutines • Use `go.uber.org/atomic` |
 | **Errors** | Never panic • Static errors via `var` • Wrap with `%w` • Handle errors once • Safe type assertions |
-| **Quality** | Verify interface compliance • No pointers to interfaces • Dependency injection • Use `time.Duration` • Consistency |
+| **Quality** | Verify interface compliance (**MANDATORY**) • Log type assertion failures • No pointers to interfaces • Dependency injection • Use `time.Duration` • Consistency |
+
+---
+
+## HotPlex-Specific Checklist
+
+Before submitting code, verify:
+
+- [ ] New interface has `var _ Interface = (*Impl)(nil)` check
+- [ ] Type assertions in integration code have failure logs
+- [ ] No silent `adapter.(Interface)` without logging the `ok=false` case
