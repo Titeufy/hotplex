@@ -17,29 +17,24 @@ func TestBuildSessionStatsMessage_Int32Types(t *testing.T) {
 		Type:    base.MessageTypeSessionStats,
 		Content: "",
 		Metadata: map[string]any{
-			"event_type":     "session_stats",
-			"session_id":     "sess_123",
-			"duration_ms":    int64(12500),
-			"tokens_in":      int32(1200), // int32 as from SessionStatsData
-			"tokens_out":     int32(350),  // int32 as from SessionStatsData
-			"total_tokens":   int32(1550), // int32 as from SessionStatsData
-			"tool_count":     int32(3),    // int32 as from SessionStatsData
-			"files_modified": int32(2),    // int32 as from SessionStatsData
-			"tools_used":     []string{"Read", "Edit", "Bash"},
+			"event_type":        "session_stats",
+			"session_id":        "sess_123",
+			"total_duration_ms": int64(12500),
+			"input_tokens":      int32(1200), // int32 as from SessionStatsData
+			"output_tokens":     int32(350),  // int32 as from SessionStatsData
+			"tool_call_count":   int32(3),    // int32 as from SessionStatsData
+			"files_modified":    int32(2),    // int32 as from SessionStatsData
 		},
 	}
 
 	blocks := builder.BuildSessionStatsMessage(msg)
 
 	assert.NotNil(t, blocks)
-	assert.Len(t, blocks, 2) // Header + stats context
-
-	// Verify header block
-	headerBlock := blocks[0]
-	assert.NotNil(t, headerBlock)
+	assert.Len(t, blocks, 1) // Single context block with stats
 
 	// Verify context block contains stats
-	contextBlock := blocks[1]
+	contextBlock, ok := blocks[0].(*slack.ContextBlock)
+	assert.True(t, ok)
 	assert.NotNil(t, contextBlock)
 }
 
@@ -51,23 +46,23 @@ func TestBuildSessionStatsMessage_Int64Types(t *testing.T) {
 		Type:    base.MessageTypeSessionStats,
 		Content: "",
 		Metadata: map[string]any{
-			"event_type":     "session_stats",
-			"duration_ms":    int64(12500),
-			"tokens_in":      int64(1200),
-			"tokens_out":     int64(350),
-			"tool_count":     int64(3),
-			"files_modified": int64(2),
+			"event_type":        "session_stats",
+			"total_duration_ms": int64(12500),
+			"input_tokens":      int64(1200),
+			"output_tokens":     int64(350),
+			"tool_call_count":   int64(3),
+			"files_modified":    int64(2),
 		},
 	}
 
 	blocks := builder.BuildSessionStatsMessage(msg)
 
 	assert.NotNil(t, blocks)
-	assert.Len(t, blocks, 2) // Header + stats context
+	assert.Len(t, blocks, 1) // Single context block with stats
 }
 
 func TestBuildSessionStatsMessage_Empty(t *testing.T) {
-	// When no stats are available, should still return valid blocks
+	// When no stats are available, should return empty/nil blocks
 	builder := NewMessageBuilder()
 
 	msg := &base.ChatMessage{
@@ -80,8 +75,8 @@ func TestBuildSessionStatsMessage_Empty(t *testing.T) {
 
 	blocks := builder.BuildSessionStatsMessage(msg)
 
-	assert.NotNil(t, blocks)
-	assert.Len(t, blocks, 2) // Header + "Session completed" context
+	// No stats means no blocks (only raw stats are displayed)
+	assert.Len(t, blocks, 0)
 }
 
 func TestBuildSessionStatsMessage_WithAllFields(t *testing.T) {
@@ -92,27 +87,23 @@ func TestBuildSessionStatsMessage_WithAllFields(t *testing.T) {
 		Type:    base.MessageTypeSessionStats,
 		Content: "",
 		Metadata: map[string]any{
-			"event_type":           "session_stats",
-			"session_id":           "sess_123",
-			"duration_ms":          int64(12500),
-			"thinking_duration_ms": int64(3000),
-			"tool_duration_ms":     int64(5000),
-			"tokens_in":            int32(1200),
-			"tokens_out":           int32(350),
-			"total_tokens":         int32(1550),
-			"tool_count":           int32(3),
-			"tools_used":           []string{"Read", "Edit", "Bash"},
-			"files_modified":       int32(2),
+			"event_type":        "session_stats",
+			"session_id":        "sess_123",
+			"total_duration_ms": int64(12500),
+			"input_tokens":      int32(1200),
+			"output_tokens":     int32(350),
+			"tool_call_count":   int32(3),
+			"files_modified":    int32(2),
 		},
 	}
 
 	blocks := builder.BuildSessionStatsMessage(msg)
 
 	assert.NotNil(t, blocks)
-	assert.Len(t, blocks, 2)
+	assert.Len(t, blocks, 1)
 
 	// Verify the stats line contains expected emojis
-	contextBlock, ok := blocks[1].(*slack.ContextBlock)
+	contextBlock, ok := blocks[0].(*slack.ContextBlock)
 	if ok {
 		assert.NotNil(t, contextBlock)
 		// The block should contain duration, tokens, files, and tools

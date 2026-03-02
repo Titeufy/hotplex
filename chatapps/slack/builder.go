@@ -314,9 +314,6 @@ func (b *MessageBuilder) BuildAnswerMessage(msg *base.ChatMessage) []slack.Block
 	// Convert Markdown to mrkdwn
 	formattedContent := b.formatter.Format(content)
 
-	// Add zone title for visual identification (Zone 2: Output)
-	formattedContent = ":speech_balloon: *Answer*\n" + formattedContent
-
 	// Check if content is too long for a single message
 	if len(formattedContent) > 4000 {
 		// Split into chunks
@@ -587,12 +584,9 @@ func (b *MessageBuilder) BuildDangerBlockMessage(msg *base.ChatMessage) []slack.
 func (b *MessageBuilder) BuildSessionStatsMessage(msg *base.ChatMessage) []slack.Block {
 	var blocks []slack.Block
 
-	// Build compact stats line: Turn Complete • ⏱️ duration • ⚡ tokens in/out • 📝 files • 🔧 tools
+	// Build compact stats line: ⏱️ duration • ⚡ tokens in/out • 📝 files • 🔧 tools
 	if msg.Metadata != nil {
 		var stats []string
-
-		// Add "Turn Complete" indicator at the beginning
-		stats = append(stats, "✓ Turn Complete")
 
 		// Total Duration (from total_duration_ms in SessionStats.ToSummary)
 		if duration := extractInt64(msg.Metadata, "total_duration_ms"); duration > 0 {
@@ -620,13 +614,6 @@ func (b *MessageBuilder) BuildSessionStatsMessage(msg *base.ChatMessage) []slack
 			statsText := slack.NewTextBlockObject("mrkdwn", strings.Join(stats, " • "), false, false)
 			blocks = append(blocks, slack.NewContextBlock("", statsText))
 		}
-	}
-
-	// Always return at least 2 blocks to avoid "no_text" error
-	// If no stats available, add a simple context block
-	if len(blocks) < 2 {
-		contextText := slack.NewTextBlockObject("mrkdwn", "Session completed", false, false)
-		blocks = append(blocks, slack.NewContextBlock("", contextText))
 	}
 
 	return blocks
