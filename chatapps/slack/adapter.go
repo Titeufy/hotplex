@@ -506,9 +506,6 @@ func (a *Adapter) handleEventCallback(ctx context.Context, eventData json.RawMes
 	}
 
 	threadID := msgEvent.ThreadTS
-	if threadID == "" {
-		threadID = msgEvent.TS
-	}
 
 	// Convert #<command> prefix to /<command> for thread support
 	// Slack threads don't support slash commands, so we allow #reset, #dc, etc.
@@ -742,9 +739,6 @@ func (a *Adapter) handleSocketModeMessageEvent(ev *slackevents.MessageEvent) {
 	}
 
 	threadID := ev.ThreadTimeStamp
-	if threadID == "" {
-		threadID = ev.TimeStamp
-	}
 
 	// Convert #<command> prefix to /<command> for thread support
 	// Slack threads don't support slash commands, so we allow #reset, #dc, etc.
