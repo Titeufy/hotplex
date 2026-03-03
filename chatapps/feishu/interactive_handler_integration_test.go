@@ -352,3 +352,159 @@ func TestEncodeDecodeActionValue_RoundTrip(t *testing.T) {
 		t.Errorf("MessageID mismatch: got %s, want %s", decoded.MessageID, original.MessageID)
 	}
 }
+
+// TestHandleInteractive_MethodNotAllowed tests GET request handling
+func TestHandleInteractive_MethodNotAllowed(t *testing.T) {
+	logger := slog.Default()
+	config := &Config{
+		AppID:             "test_app_id",
+		AppSecret:         "test_app_secret",
+		VerificationToken: "test_verification_token",
+		EncryptKey:        "test_encrypt_key",
+		ServerAddr:        ":0",
+		SystemPrompt:      "test",
+	}
+
+	adapter, err := NewAdapter(config, logger)
+	if err != nil {
+		t.Fatalf("Failed to create adapter: %v", err)
+	}
+	defer func() { _ = adapter.Stop() }()
+
+	handler := NewInteractiveHandler(adapter)
+
+	req := httptest.NewRequest("GET", "/feishu/interactive", nil)
+	rr := httptest.NewRecorder()
+	handler.HandleInteractive(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Errorf("Expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
+	}
+}
+
+// TestHandleInteractive_InvalidSignature tests invalid signature handling
+func TestHandleInteractive_InvalidSignature(t *testing.T) {
+	logger := slog.Default()
+	config := &Config{
+		AppID:             "test_app_id",
+		AppSecret:         "test_app_secret",
+		VerificationToken: "test_verification_token",
+		EncryptKey:        "test_encrypt_key",
+		ServerAddr:        ":0",
+		SystemPrompt:      "test",
+	}
+
+	adapter, err := NewAdapter(config, logger)
+	if err != nil {
+		t.Fatalf("Failed to create adapter: %v", err)
+	}
+	defer func() { _ = adapter.Stop() }()
+
+	handler := NewInteractiveHandler(adapter)
+
+	event := InteractiveEvent{
+		Header: &InteractiveHeader{
+			EventType: "im.message.reply",
+		},
+	}
+
+	body, _ := json.Marshal(event)
+	req := httptest.NewRequest("POST", "/feishu/interactive", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	// Invalid signature
+	req.Header.Set("X-Timestamp", "1234567890")
+	req.Header.Set("X-Signature", "invalid_signature")
+
+	rr := httptest.NewRecorder()
+	handler.HandleInteractive(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status %d, got %d", http.StatusUnauthorized, rr.Code)
+	}
+}
+
+// TestHandleInteractive_InvalidJSON tests invalid JSON handling
+func TestHandleInteractive_InvalidJSON(t *testing.T) {
+	logger := slog.Default()
+	config := &Config{
+		AppID:             "test_app_id",
+		AppSecret:         "test_app_secret",
+		VerificationToken: "test_verification_token",
+		EncryptKey:        "test_encrypt_key",
+		ServerAddr:        ":0",
+		SystemPrompt:      "test",
+	}
+
+	adapter, err := NewAdapter(config, logger)
+	if err != nil {
+		t.Fatalf("Failed to create adapter: %v", err)
+	}
+	defer func() { _ = adapter.Stop() }()
+
+	handler := NewInteractiveHandler(adapter)
+
+	req := httptest.NewRequest("POST", "/feishu/interactive", bytes.NewReader([]byte("invalid json")))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Timestamp", "1234567890")
+	req.Header.Set("X-Signature", calculateHMACSHA256("1234567890"+"test_encrypt_key"+"invalid json", "test_encrypt_key"))
+
+	rr := httptest.NewRecorder()
+	handler.HandleInteractive(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, rr.Code)
+	}
+}
+
+// TestUpdatePermissionCard_Results tests different result types
+func TestUpdatePermissionCard_Results(t *testing.T) {
+	logger := slog.Default()
+	config := &Config{
+		AppID:             "test_app_id",
+		AppSecret:         "test_app_secret",
+		VerificationToken: "test_verification_token",
+		EncryptKey:        "test_encrypt_key",
+		ServerAddr:        ":0",
+		SystemPrompt:      "test",
+	}
+
+	adapter, err := NewAdapter(config, logger)
+	if err != nil {
+		t.Fatalf("Failed to create adapter: %v", err)
+	}
+	defer func() { _ = adapter.Stop() }()
+
+	handler := NewInteractiveHandler(adapter)
+
+	ctx := context.Background()
+
+	// Test approved
+	err = handler.UpdatePermissionCard(ctx, "msg-123", "chat-456", "approved")
+	if err == nil {
+		t.Error("Expected error due to invalid credentials")
+	}
+
+	// Test denied
+	err = handler.UpdatePermissionCard(ctx, "msg-123", "chat-456", "denied")
+	if err == nil {
+		t.Error("Expected error due to invalid credentials")
+	}
+
+	// Test allow (alias)
+	err = handler.UpdatePermissionCard(ctx, "msg-123", "chat-456", "allow")
+	if err == nil {
+		t.Error("Expected error due to invalid credentials")
+	}
+
+	// Test deny (alias)
+	err = handler.UpdatePermissionCard(ctx, "msg-123", "chat-456", "deny")
+	if err == nil {
+		t.Error("Expected error due to invalid credentials")
+	}
+
+	// Test unknown
+	err = handler.UpdatePermissionCard(ctx, "msg-123", "chat-456", "unknown")
+	if err == nil {
+		t.Error("Expected error due to invalid credentials")
+	}
+}

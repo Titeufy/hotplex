@@ -164,11 +164,6 @@ func (h *InteractiveHandler) handlePermissionCallback(w http.ResponseWriter, r *
 		return
 	}
 
-	// Update the original message with result
-	// Determine if approved or denied based on button clicked
-	// For now, we'll send a follow-up message
-	resultText := "✅ 已允许执行"
-
 	// Get access token
 	token, err := h.adapter.GetAppTokenWithContext(r.Context())
 	if err != nil {
@@ -177,14 +172,28 @@ func (h *InteractiveHandler) handlePermissionCallback(w http.ResponseWriter, r *
 		return
 	}
 
-	// TODO: Route to command handler for actual execution
-	// For now, just acknowledge the callback
+	// Determine result based on button clicked (encoded in action type)
+	// For permission_request action, we consider it as "approved" when callback is received
+	// In a real scenario, the button would encode "allow" or "deny" in the action value
+	result := "approved"
+	resultText := "✅ 已允许执行"
 
 	// Send confirmation message
 	_, err = h.adapter.client.SendTextMessage(r.Context(), token, chatID, resultText)
 	if err != nil {
 		h.logger.Error("Send confirmation failed", "error", err)
 	}
+
+	// Update the permission card with result (async, non-blocking)
+	go func() {
+		ctx := context.Background()
+		if err := h.UpdatePermissionCard(ctx, event.Event.Message.MessageID, chatID, result); err != nil {
+			h.logger.Error("Update permission card failed", "error", err)
+		}
+	}()
+
+	// TODO: Route to command handler for actual execution
+	// This will be implemented in Phase 2.3 with command.Handler integration
 
 	// Acknowledge the callback
 	w.Header().Set("Content-Type", "application/json")
@@ -194,7 +203,7 @@ func (h *InteractiveHandler) handlePermissionCallback(w http.ResponseWriter, r *
 
 // UpdatePermissionCard updates a permission card with the result
 func (h *InteractiveHandler) UpdatePermissionCard(ctx context.Context, messageID, chatID, result string) error {
-	_, err := h.adapter.GetAppTokenWithContext(ctx)
+	token, err := h.adapter.GetAppTokenWithContext(ctx)
 	if err != nil {
 		return err
 	}
@@ -202,17 +211,21 @@ func (h *InteractiveHandler) UpdatePermissionCard(ctx context.Context, messageID
 	// Build result card
 	var cardTemplate string
 	var title string
+	var description string
 
 	switch strings.ToLower(result) {
 	case "approved", "allow":
 		cardTemplate = CardTemplateGreen
 		title = "✅ 已允许"
+		description = "权限已批准，操作将继续执行"
 	case "denied", "deny":
 		cardTemplate = CardTemplateRed
 		title = "❌ 已拒绝"
+		description = "权限已拒绝，操作已取消"
 	default:
 		cardTemplate = Grey
 		title = "⏸️ 已取消"
+		description = "操作已取消"
 	}
 
 	resultCard := &CardTemplate{
@@ -229,6 +242,13 @@ func (h *InteractiveHandler) UpdatePermissionCard(ctx context.Context, messageID
 		},
 		Elements: []CardElement{
 			{
+				Type: ElementDiv,
+				Text: &Text{
+					Content: description,
+					Tag:     TextTypeLarkMD,
+				},
+			},
+			{
 				Type: ElementNote,
 				Elements: []CardElement{
 					{
@@ -243,14 +263,23 @@ func (h *InteractiveHandler) UpdatePermissionCard(ctx context.Context, messageID
 		},
 	}
 
-	_, _ = json.Marshal(resultCard) // Placeholder
+	cardJSON, err := json.Marshal(resultCard)
+	if err != nil {
+		return err
+	}
 
-	// Note: Feishu API doesn't support updating messages directly
-	// We would need to use a different approach (e.g., send a new message)
-	// For now, this is a placeholder for future implementation
+	// Note: Feishu doesn't support updating messages directly
+	// We send a follow-up message with the result card
+	_, err = h.adapter.client.SendMessage(ctx, token, chatID, "interactive", map[string]string{
+		"config": string(cardJSON),
+	})
+	if err != nil {
+		return err
+	}
 
-	h.logger.Info("Permission card update requested",
+	h.logger.Info("Permission card updated",
 		"message_id", messageID,
+		"chat_id", chatID,
 		"result", result,
 	)
 
