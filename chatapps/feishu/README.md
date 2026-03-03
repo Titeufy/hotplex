@@ -1,44 +1,46 @@
 # Feishu (Lark) Adapter for HotPlex
 
-飞书（Lark）适配器，为 HotPlex 提供中国企业 IM 集成能力。
+*View other languages: [简体中文](README_zh.md)*
 
-**状态**: ✅ Phase 3 生产就绪  
-**测试覆盖率**: 50.4%  
-**最后更新**: 2026-03-03
+Feishu (Lark) adapter providing Chinese enterprise IM integration capabilities for HotPlex.
 
----
-
-## 📖 目录
-
-- [快速开始](#-快速开始)
-- [配置说明](#-配置说明)
-- [飞书开发者后台配置](#-飞书开发者后台配置)
-- [核心功能](#-核心功能)
-- [API 参考](#-api-参考)
-- [错误处理](#-错误处理)
-- [测试指南](#-测试指南)
-- [常见问题](#-常见问题)
-- [参考文档](#-参考文档)
+**Status**: ✅ Phase 3 Production Ready  
+**Test Coverage**: 50.4%  
+**Last Updated**: 2026-03-03
 
 ---
 
-## 🚀 快速开始
+## 📖 Table of Contents
 
-### 1. 配置环境变量
+- [Quick Start](#-quick-start)
+- [Configuration](#-configuration)
+- [Feishu Developer Console Setup](#-feishu-developer-console-setup)
+- [Core Features](#-core-features)
+- [API Reference](#-api-reference)
+- [Error Handling](#-error-handling)
+- [Testing Guide](#-testing-guide)
+- [FAQ](#-faq)
+- [References](#-references)
+
+---
+
+## 🚀 Quick Start
+
+### 1. Configure Environment Variables
 
 ```bash
-# 必填：飞书应用凭证
+# Required: Feishu application credentials
 export FEISHU_APP_ID=cli_a1b2c3d4e5f6g7h8
 export FEISHU_APP_SECRET=xxxxxxxxxxxxxxxx
 export FEISHU_VERIFICATION_TOKEN=xxxxxxxx
 export FEISHU_ENCRYPT_KEY=xxxxxxxxxxxxxxxx
 
-# 可选：服务器配置
+# Optional: Server configuration
 export FEISHU_SERVER_ADDR=:8082
 export FEISHU_MAX_MESSAGE_LEN=4096
 ```
 
-### 2. 创建适配器实例
+### 2. Create Adapter Instance
 
 ```go
 import (
@@ -68,127 +70,127 @@ func main() {
         log.Fatal(err)
     }
     
-    // 设置消息处理器
+    // Set message handler
     adapter.SetHandler(myHandler)
     
-    // 启动适配器
+    // Start adapter
     if err := adapter.Start(ctx); err != nil {
         log.Fatal(err)
     }
 }
 ```
 
-### 3. 验证部署
+### 3. Verify Deployment
 
 ```bash
-# 检查端点可达性
+# Check endpoint accessibility
 curl -X POST https://your-domain.com/feishu/events \
   -H "Content-Type: application/json" \
   -d '{"challenge": "test"}'
 
-# 预期响应：返回 challenge 值
+# Expected response: returns challenge value
 ```
 
 ---
 
-## ⚙️ 配置说明
+## ⚙️ Configuration
 
-### 必填配置
+### Required Configuration
 
-| 配置项 | 环境变量 | 说明 | 获取方式 |
-|--------|----------|------|----------|
-| `AppID` | `FEISHU_APP_ID` | 飞书应用 App ID | 飞书开发者后台 → 应用凭证 |
-| `AppSecret` | `FEISHU_APP_SECRET` | 飞书应用 App Secret | 飞书开发者后台 → 应用凭证 |
-| `VerificationToken` | `FEISHU_VERIFICATION_TOKEN` | 事件订阅验证 Token | 飞书开发者后台 → 事件订阅 |
-| `EncryptKey` | `FEISHU_ENCRYPT_KEY` | 消息加密 Key | 飞书开发者后台 → 事件订阅 |
+| Config | Environment Variable | Description | How to Obtain |
+|--------|---------------------|-------------|---------------|
+| `AppID` | `FEISHU_APP_ID` | Feishu App ID | Feishu Developer Console → App Credentials |
+| `AppSecret` | `FEISHU_APP_SECRET` | Feishu App Secret | Feishu Developer Console → App Credentials |
+| `VerificationToken` | `FEISHU_VERIFICATION_TOKEN` | Event Subscription Verification Token | Feishu Developer Console → Event Subscription |
+| `EncryptKey` | `FEISHU_ENCRYPT_KEY` | Message Encryption Key | Feishu Developer Console → Event Subscription |
 
-### 可选配置
+### Optional Configuration
 
-| 配置项 | 环境变量 | 默认值 | 说明 |
-|--------|----------|--------|------|
-| `ServerAddr` | `FEISHU_SERVER_ADDR` | `:8082` | Webhook 服务器监听地址 |
-| `MaxMessageLen` | `FEISHU_MAX_MESSAGE_LEN` | `4096` | 单消息最大长度（字节） |
-| `SystemPrompt` | - | - | 系统提示词（可选） |
-| `CommandRateLimit` | - | `10.0` | 命令速率限制（次/秒） |
-| `CommandRateBurst` | - | `20` | 命令突发容量 |
-
----
-
-## 🔧 飞书开发者后台配置
-
-### 步骤 1: 创建企业自建应用
-
-1. 登录 [飞书开放平台](https://open.feishu.cn/)
-2. 进入「企业自建应用」→「创建应用」
-3. 填写应用名称、图标、描述
-4. 记录 **App ID** 和 **App Secret**
-
-### 步骤 2: 配置权限
-
-在「权限管理」页面添加以下权限：
-
-| 权限名称 | 权限标识 | 用途 |
-|----------|----------|------|
-| 发送消息 | `im:message` | 向用户/群组发送消息 |
-| 接收消息 | `im:message.receive_v1` | 接收用户消息事件 |
-| 机器人配置 | `im:bot` | 配置机器人能力 |
-
-### 步骤 3: 配置事件订阅
-
-1. 进入「事件订阅」页面
-2. 启用「事件订阅」开关
-3. 填写请求地址：`https://your-domain.com/feishu/events`
-4. 复制 **Verification Token** 和 **Encrypt Key**
-5. 订阅以下事件：
-   - ✅ `im.message.receive_v1` - 接收消息
-   - ✅ `im.message.read_v1` - 消息已读（可选）
-
-### 步骤 4: 配置机器人命令
-
-1. 进入「机器人」→「命令配置」
-2. 添加以下命令：
-
-| 命令 | 描述 | 权限 |
-|------|------|------|
-| `/reset` | 重置会话上下文 | 所有成员 |
-| `/dc` | 断开当前连接 | 所有成员 |
-
-### 步骤 5: 发布应用
-
-1. 进入「版本管理与发布」
-2. 创建新版本
-3. 提交审核（如需）
-4. 启用应用
+| Config | Environment Variable | Default | Description |
+|--------|---------------------|---------|-------------|
+| `ServerAddr` | `FEISHU_SERVER_ADDR` | `:8082` | Webhook server listen address |
+| `MaxMessageLen` | `FEISHU_MAX_MESSAGE_LEN` | `4096` | Maximum message length (bytes) |
+| `SystemPrompt` | - | - | System prompt (optional) |
+| `CommandRateLimit` | - | `10.0` | Command rate limit (requests/second) |
+| `CommandRateBurst` | - | `20` | Command burst capacity |
 
 ---
 
-## 🎯 核心功能
+## 🔧 Feishu Developer Console Setup
 
-### 1. CardBuilder - 卡片构建器
+### Step 1: Create Enterprise Self-Built App
 
-提供类型安全的飞书互动卡片构建能力：
+1. Login to [Feishu Open Platform](https://open.feishu.cn/)
+2. Go to "Enterprise Self-Built Apps" → "Create App"
+3. Fill in app name, icon, description
+4. Record **App ID** and **App Secret**
+
+### Step 2: Configure Permissions
+
+Add the following permissions on "Permissions" page:
+
+| Permission Name | Permission ID | Purpose |
+|----------------|---------------|---------|
+| Send Messages | `im:message` | Send messages to users/groups |
+| Receive Messages | `im:message.receive_v1` | Receive message events |
+| Bot Configuration | `im:bot` | Configure bot capabilities |
+
+### Step 3: Configure Event Subscription
+
+1. Go to "Event Subscription" page
+2. Enable "Event Subscription" switch
+3. Fill in request URL: `https://your-domain.com/feishu/events`
+4. Copy **Verification Token** and **Encrypt Key**
+5. Subscribe to the following events:
+   - ✅ `im.message.receive_v1` - Receive messages
+   - ✅ `im.message.read_v1` - Message read (optional)
+
+### Step 4: Configure Bot Commands
+
+1. Go to "Bot" → "Command Configuration"
+2. Add the following commands:
+
+| Command | Description | Permission |
+|---------|-------------|------------|
+| `/reset` | Reset session context | All members |
+| `/dc` | Disconnect current connection | All members |
+
+### Step 5: Publish App
+
+1. Go to "Version Management & Release"
+2. Create new version
+3. Submit for review (if required)
+4. Enable app
+
+---
+
+## 🎯 Core Features
+
+### 1. CardBuilder - Card Builder
+
+Provides type-safe Feishu interactive card building capabilities:
 
 ```go
 import "github.com/hrygo/hotplex/chatapps/feishu"
 
 builder := feishu.NewCardBuilder()
 
-// 构建思考中卡片
-thinkingCard := builder.BuildThinkingCard("正在分析您的问题...")
+// Build thinking card
+thinkingCard := builder.BuildThinkingCard("Analyzing your question...")
 
-// 构建工具调用卡片
-toolCard := builder.BuildToolUseCard("search", "搜索相关信息")
+// Build tool use card
+toolCard := builder.BuildToolUseCard("search", "Searching for relevant information")
 
-// 构建权限请求卡片
-permCard := builder.BuildPermissionCard("需要访问您的日历")
+// Build permission request card
+permCard := builder.BuildPermissionCard("Needs access to your calendar")
 
-// 构建回答卡片
-answerCard := builder.BuildAnswerCard("这是 AI 的回答内容")
+// Build answer card
+answerCard := builder.BuildAnswerCard("This is the AI's response")
 
-// 构建错误卡片
-errorCard := builder.BuildErrorCard("发生错误：网络连接失败")
+// Build error card
+errorCard := builder.BuildErrorCard("Error occurred: Network connection failed")
 
-// 构建会话统计卡片
+// Build session stats card
 statsCard := builder.BuildSessionStatsCard(
     feishu.SessionStats{
         TotalMessages: 100,
@@ -198,116 +200,116 @@ statsCard := builder.BuildSessionStatsCard(
 )
 ```
 
-### 2. InteractiveHandler - 交互处理器
+### 2. InteractiveHandler - Interaction Handler
 
-处理飞书卡片回调事件：
+Handles Feishu card callback events:
 
 ```go
-// 自动注册到适配器
+// Automatically registered to adapter
 adapter, _ := feishu.NewAdapter(config, logger)
 
-// 内部处理逻辑：
-// 1. URL 验证（飞书回调验证）
-// 2. 按钮点击回调
-// 3. 表单提交回调
-// 4. 权限授权回调
+// Internal processing logic:
+// 1. URL verification (Feishu callback verification)
+// 2. Button click callback
+// 3. Form submission callback
+// 4. Permission authorization callback
 ```
 
-**支持的交互类型**:
+**Supported Interaction Types**:
 
-| 类型 | 事件 | 处理器 |
-|------|------|--------|
-| URL 验证 | `url_verification` | `handleURLVerification` |
-| 按钮回调 | `interactive` | `handleButtonCallback` |
-| 权限授权 | `interactive` | `handlePermissionCallback` |
+| Type | Event | Handler |
+|------|-------|---------|
+| URL Verification | `url_verification` | `handleURLVerification` |
+| Button Callback | `interactive` | `handleButtonCallback` |
+| Permission Authorization | `interactive` | `handlePermissionCallback` |
 
-### 3. CommandHandler - 命令处理器
+### 3. CommandHandler - Command Handler
 
-处理飞书机器人命令：
+Handles Feishu bot commands:
 
 ```go
-// 内置命令
-/reset    - 重置会话上下文
-/dc       - 断开当前连接
+// Built-in commands
+/reset    - Reset session context
+/dc       - Disconnect current connection
 
-// 自定义命令注册
+// Custom command registration
 registry := command.NewRegistry()
 registry.Register("status", handleStatusCommand)
 adapter.SetCommandRegistry(registry)
 ```
 
-**命令处理特性**:
+**Command Handler Features**:
 
-- ✅ 频率限制（默认 10 次/秒，突发 20 次）
-- ✅ 命令映射和路由
-- ✅ 错误处理和用户提示
-- ✅ 支持自定义命令扩展
+- ✅ Rate limiting (default 10 req/s, burst 20)
+- ✅ Command mapping and routing
+- ✅ Error handling and user prompts
+- ✅ Support for custom command extension
 
-### 4. EventHandler - 事件处理层
+### 4. EventHandler - Event Processing Layer
 
-统一的飞书事件处理层（DRY 原则）：
+Unified Feishu event processing layer (DRY principle):
 
 ```go
-// 内部架构：
+// Internal architecture:
 // EventParser → EventHandler → CommandHandler/InteractiveHandler
 //
-// 1. EventParser: 解析飞书原始事件
-// 2. EventHandler: 路由到对应处理器
-// 3. CommandHandler: 处理命令事件
-// 4. InteractiveHandler: 处理交互事件
+// 1. EventParser: Parse Feishu raw events
+// 2. EventHandler: Route to corresponding handlers
+// 3. CommandHandler: Handle command events
+// 4. InteractiveHandler: Handle interaction events
 ```
 
 ---
 
-## 📚 API 参考
+## 📚 API Reference
 
-### Adapter 接口
+### Adapter Interface
 
 ```go
 type Adapter interface {
-    // 启动适配器
+    // Start adapter
     Start(ctx context.Context) error
     
-    // 停止适配器
+    // Stop adapter
     Stop(ctx context.Context) error
     
-    // 设置消息处理器
+    // Set message handler
     SetHandler(handler base.MessageHandler)
     
-    // 发送消息到频道
+    // Send message to channel
     SendToChannel(ctx context.Context, chatID, text, threadID string) error
     
-    // 发送卡片消息
+    // Send card message
     SendCard(ctx context.Context, chatID string, card *feishu.Card) error
     
-    // 更新消息
+    // Update message
     UpdateMessage(ctx context.Context, msgID, text string) error
     
-    // 记录日志
+    // Log
     Logger() *slog.Logger
 }
 ```
 
-### Config 结构
+### Config Structure
 
 ```go
 type Config struct {
-    AppID             string  // 必填：App ID
-    AppSecret         string  // 必填：App Secret
-    VerificationToken string  // 必填：验证 Token
-    EncryptKey        string  // 必填：加密 Key
-    ServerAddr        string  // 可选：服务器地址（默认 :8082）
-    MaxMessageLen     int     // 可选：最大消息长度（默认 4096）
-    CommandRateLimit  float64 // 可选：命令速率限制（默认 10.0）
-    CommandRateBurst  int     // 可选：命令突发容量（默认 20）
+    AppID             string  // Required: App ID
+    AppSecret         string  // Required: App Secret
+    VerificationToken string  // Required: Verification Token
+    EncryptKey        string  // Required: Encryption Key
+    ServerAddr        string  // Optional: Server address (default :8082)
+    MaxMessageLen     int     // Optional: Max message length (default 4096)
+    CommandRateLimit  float64 // Optional: Command rate limit (default 10.0)
+    CommandRateBurst  int     // Optional: Command burst capacity (default 20)
 }
 ```
 
 ---
 
-## ❌ 错误处理
+## ❌ Error Handling
 
-### 错误类型
+### Error Types
 
 ```go
 import (
@@ -318,45 +320,45 @@ import (
 if err != nil {
     var apiErr *feishu.APIError
     if errors.As(err, &apiErr) {
-        // API 错误，查看错误码
+        // API error, check error code
         log.Printf("API error: code=%d, msg=%s", apiErr.Code, apiErr.Msg)
     } else if errors.Is(err, feishu.ErrInvalidSignature) {
-        // 签名验证失败
+        // Signature verification failed
         log.Println("Invalid signature")
     } else if errors.Is(err, feishu.ErrTokenExpired) {
-        // Token 过期
+        // Token expired
         log.Println("Token expired, will refresh")
     }
 }
 ```
 
-### 常见错误码
+### Common Error Codes
 
-| 错误码 | 说明 | 解决方案 |
-|--------|------|----------|
-| `99991663` | app access token invalid | 检查 AppID/AppSecret 是否正确 |
-| `99991668` | Invalid access token | Token 过期，等待自动刷新（30 分钟） |
-| `99991671` | No permission | 检查应用权限配置，重新授权 |
-| `99991664` | Invalid verification token | 检查 Verification Token 配置 |
-| `99991670` | Encrypt key error | 检查 Encrypt Key 配置 |
-| `99991672` | Webhook URL invalid | 检查 Webhook URL 是否可访问 |
+| Error Code | Description | Solution |
+|------------|-------------|----------|
+| `99991663` | app access token invalid | Check if AppID/AppSecret is correct |
+| `99991668` | Invalid access token | Token expired, wait for auto-refresh (30 min) |
+| `99991671` | No permission | Check app permission configuration, re-authorize |
+| `99991664` | Invalid verification token | Check Verification Token configuration |
+| `99991670` | Encrypt key error | Check Encrypt Key configuration |
+| `99991672` | Webhook URL invalid | Check if Webhook URL is accessible |
 
-### 错误处理最佳实践
+### Error Handling Best Practices
 
 ```go
-// 1. 认证错误 - 立即告警
+// 1. Authentication error - alert immediately
 if errors.Is(err, feishu.ErrAuthFailed) {
     alertAdmin("Feishu auth failed, check credentials")
     return err
 }
 
-// 2. 速率限制 - 等待重试
+// 2. Rate limit - wait and retry
 if errors.Is(err, feishu.ErrRateLimited) {
     time.Sleep(time.Second)
     return retry()
 }
 
-// 3. 网络错误 - 指数退避重试
+// 3. Network error - exponential backoff retry
 if isNetworkError(err) {
     return retryWithBackoff()
 }
@@ -364,166 +366,166 @@ if isNetworkError(err) {
 
 ---
 
-## 🧪 测试指南
+## 🧪 Testing Guide
 
-### 运行单元测试
+### Run Unit Tests
 
 ```bash
-# 运行所有测试
+# Run all tests
 go test ./chatapps/feishu/... -v
 
-# 运行特定测试
+# Run specific test
 go test ./chatapps/feishu/... -run TestCardBuilder -v
 
-# 生成覆盖率报告
+# Generate coverage report
 go test ./chatapps/feishu/... -coverprofile=coverage.out
 go tool cover -html=coverage.out
 
-# 运行集成测试（需要真实环境）
+# Run integration tests (requires real environment)
 go test ./chatapps/feishu/... -tags=integration -v
 ```
 
-### 测试覆盖范围
+### Test Coverage
 
-| 模块 | 覆盖率 | 测试文件 |
-|------|--------|----------|
+| Module | Coverage | Test File |
+|--------|----------|-----------|
 | CardBuilder | 85% | `card_builder_test.go` |
 | CommandHandler | 72% | `command_handler_test.go` |
 | InteractiveHandler | 68% | `interactive_handler_test.go` |
 | EventParser | 90% | `event_parser_test.go` |
 | Signature | 95% | `signature_test.go` |
-| **总计** | **50.4%** | - |
+| **Total** | **50.4%** | - |
 
-### 压力测试
+### Pressure Tests
 
 ```bash
-# 运行压力测试（需要真实飞书环境）
+# Run pressure tests (requires real Feishu environment)
 export FEISHU_APP_ID=xxx
 export FEISHU_APP_SECRET=xxx
 export FEISHU_VERIFICATION_TOKEN=xxx
 export FEISHU_ENCRYPT_KEY=xxx
 
-go test ./chatapps/feishu/... -bench=. -benchtime=1m
+go test ./chatapps/feishu/... -tags=pressure -v
 ```
 
-**压力测试场景**:
+**Pressure Test Scenarios**:
 
-1. **并发消息发送**: 100 并发，持续 1 分钟
-2. **卡片交互响应**: 测量 P95/P99 延迟
-3. **命令速率限制**: 验证限流效果
-4. **长连接稳定性**: 30 分钟持续运行
+1. **Concurrent Message Send**: 100 concurrency, 1 minute duration
+2. **Card Interaction Response**: Measure P95/P99 latency
+3. **Command Rate Limit**: Verify rate limiting effect
+4. **Long Connection Stability**: 30 minutes continuous run
 
 ---
 
-## 🤔 常见问题
+## 🤔 FAQ
 
-### Q1: 事件收不到怎么办？
+### Q1: Not receiving events?
 
-**检查清单**:
+**Checklist**:
 
-1. ✅ 飞书开发者后台事件订阅已启用
-2. ✅ Webhook URL 可公网访问（使用 ngrok 测试）
-3. ✅ Verification Token 配置正确
-4. ✅ 服务器日志无签名验证错误
+1. ✅ Feishu developer console event subscription is enabled
+2. ✅ Webhook URL is publicly accessible (test with ngrok)
+3. ✅ Verification Token is configured correctly
+4. ✅ No signature verification errors in server logs
 
-**调试命令**:
+**Debug Commands**:
 
 ```bash
-# 检查端点可达性
+# Check endpoint accessibility
 curl -X POST https://your-domain.com/feishu/events \
   -H "Content-Type: application/json" \
   -d '{"challenge": "test"}'
 
-# 查看服务器日志
+# Check server logs
 tail -f /var/log/hotplex/feishu.log | grep -i error
 ```
 
-### Q2: 卡片回调不触发？
+### Q2: Card callbacks not triggering?
 
-**可能原因**:
+**Possible Causes**:
 
-1. 卡片 action 配置错误
-2. 回调 URL 未配置
-3. 签名验证失败
+1. Card action configuration error
+2. Callback URL not configured
+3. Signature verification failed
 
-**解决方案**:
+**Solution**:
 
 ```go
-// 确保卡片 action 配置正确
-card := builder.BuildAnswerCard("内容").
-    AddButton("点击", "action_value").
+// Ensure card action is configured correctly
+card := builder.BuildAnswerCard("Content").
+    AddButton("Click", "action_value").
     SetCallbackURL("/feishu/interactive")
 ```
 
-### Q3: Token 频繁过期？
+### Q3: Token frequently expires?
 
-**原因**: 飞书 access_token 有效期为 2 小时
+**Cause**: Feishu access_token validity is 2 hours
 
-**解决方案**:
+**Solution**:
 
-- ✅ 适配器已实现自动刷新（过期前 5 分钟）
-- ✅ 检查日志确认刷新逻辑正常工作
-- ✅ 如仍过期，检查系统时间是否同步
+- ✅ Adapter implements auto-refresh (5 minutes before expiration)
+- ✅ Check logs to confirm refresh logic is working
+- ✅ If still expiring, check if system time is synchronized
 
-### Q4: 消息发送失败？
+### Q4: Message send failed?
 
-**排查步骤**:
+**Troubleshooting Steps**:
 
-1. 检查错误码（参考错误码表）
-2. 验证用户/群组 ID 格式
-3. 确认应用权限已授予
-4. 检查消息内容是否违规
-
----
-
-## 📖 参考文档
-
-### 官方文档
-
-- [飞书开放平台](https://open.feishu.cn/)
-- [事件订阅机制](https://open.feishu.cn/document/ukTMukTMukTM/uYjNwUjL2YDM14iN2ATN)
-- [消息发送 API](https://open.feishu.cn/document/ukTMukTMukTM/uYjNwUjL2YDM14iN2ATN)
-- [互动卡片指南](https://open.feishu.cn/document/ukTMukTMukTM/uQjNwUjLyYDM14iO2ATN)
-- [机器人命令配置](https://open.feishu.cn/document/ukTMukTMukTM/ucjM14iN2YDM14iO2ATN)
-
-### 项目文档
-
-- [HotPlex 架构设计](../../docs/architecture.md)
-- [ChatApps 审计计划](../../docs/chatapps-audit-and-fix-plan.md)
-- [生产部署指南](../../docs/production-guide.md)
+1. Check error code (refer to error code table)
+2. Verify user/group ID format
+3. Confirm app permissions are granted
+4. Check if message content violates policies
 
 ---
 
-## 📊 开发状态
+## 📖 References
 
-| Phase | 状态 | 完成日期 |
-|-------|------|----------|
-| Phase 1: 基础通信（Adapter + API Client） | ✅ 完成 | 2026-03-03 |
-| Phase 2: 交互增强（CardBuilder + Handlers） | ✅ 完成 | 2026-03-03 |
-| Phase 3: 生产就绪（文档 + 压测） | 🔄 进行中 | - |
+### Official Documentation
 
-**下一步**: 压力测试 (#142) → 生产部署检查清单 (#143)
+- [Feishu Open Platform](https://open.feishu.cn/)
+- [Event Subscription Mechanism](https://open.feishu.cn/document/ukTMukTMukTM/uYjNwUjL2YDM14iN2ATN)
+- [Message Send API](https://open.feishu.cn/document/ukTMukTMukTM/uYjNwUjL2YDM14iN2ATN)
+- [Interactive Card Guide](https://open.feishu.cn/document/ukTMukTMukTM/uQjNwUjLyYDM14iO2ATN)
+- [Bot Command Configuration](https://open.feishu.cn/document/ukTMukTMukTM/ucjM14iN2YDM14iO2ATN)
+
+### Project Documentation
+
+- [HotPlex Architecture Design](../../docs/architecture.md)
+- [ChatApps Audit Plan](../../docs/chatapps-audit-and-fix-plan.md)
+- [Production Deployment Guide](../../docs/production-guide.md)
 
 ---
 
-## 📝 变更日志
+## 📊 Development Status
+
+| Phase | Status | Completion Date |
+|-------|--------|-----------------|
+| Phase 1: Basic Communication (Adapter + API Client) | ✅ Done | 2026-03-03 |
+| Phase 2: Interactive Enhancement (CardBuilder + Handlers) | ✅ Done | 2026-03-03 |
+| Phase 3: Production Ready (Docs + Pressure Tests) | 🔄 In Progress | - |
+
+**Next Steps**: Pressure Tests (#142) → Production Deployment Checklist (#143)
+
+---
+
+## 📝 Changelog
 
 ### v0.3.0 (2026-03-03)
 
-- ✅ Phase 2.3: CommandHandler + Adapter 整合
-- ✅ DRY/SOLID 架构重构
-- ✅ 测试覆盖率提升至 50.4%
+- ✅ Phase 2.3: CommandHandler + Adapter Integration
+- ✅ DRY/SOLID Architecture Refactoring
+- ✅ Test coverage improved to 50.4%
 
 ### v0.2.0 (2026-03-03)
 
-- ✅ Phase 2.1: CardBuilder 卡片构建器
-- ✅ Phase 2.2: InteractiveHandler 交互处理器
+- ✅ Phase 2.1: CardBuilder Card Builder
+- ✅ Phase 2.2: InteractiveHandler Interaction Handler
 
 ### v0.1.0 (2026-03-03)
 
-- ✅ Phase 1: Feishu Adapter 基础框架
+- ✅ Phase 1: Feishu Adapter Basic Framework
 
 ---
 
-*维护者*: HotPlex Team  
-*许可证*: MIT
+*Maintainer*: HotPlex Team  
+*License*: MIT
