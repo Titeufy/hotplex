@@ -20,7 +20,7 @@ const (
 func (c *Client) doRequest(ctx context.Context, method, url string, reqBody interface{}, token string, respObj interface{}) error {
 	var req *http.Request
 	var err error
-	
+
 	if reqBody != nil {
 		var bodyBytes []byte
 		bodyBytes, err = json.Marshal(reqBody)
@@ -34,29 +34,29 @@ func (c *Client) doRequest(ctx context.Context, method, url string, reqBody inte
 	if err != nil {
 		return err
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	
+
 	if respObj != nil {
 		if err := json.Unmarshal(body, respObj); err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -84,7 +84,7 @@ func NewClient(appID, appSecret string, logger *slog.Logger) *Client {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	
+
 	return &Client{
 		appID:     appID,
 		appSecret: appSecret,
@@ -97,10 +97,10 @@ func NewClient(appID, appSecret string, logger *slog.Logger) *Client {
 
 // TokenResponse represents the app access token response
 type TokenResponse struct {
-	Code              int    `json:"code"`
-	Msg               string `json:"msg"`
-	AppAccessToken    string `json:"app_access_token"`
-	Expire            int    `json:"expire"`
+	Code           int    `json:"code"`
+	Msg            string `json:"msg"`
+	AppAccessToken string `json:"app_access_token"`
+	Expire         int    `json:"expire"`
 }
 
 // GetAppToken fetches a new app access token
@@ -112,22 +112,22 @@ func (c *Client) GetAppToken() (string, int, error) {
 // GetAppTokenWithContext fetches a new app access token with context
 func (c *Client) GetAppTokenWithContext(ctx context.Context) (string, int, error) {
 	url := feishuAPIBase + feishuTokenAPI
-	
+
 	reqBody := map[string]string{
 		"app_id":     c.appID,
 		"app_secret": c.appSecret,
 	}
-	
+
 	var tokenResp TokenResponse
 	if err := c.doRequest(ctx, "POST", url, reqBody, "", &tokenResp); err != nil {
 		return "", 0, ErrTokenFetchFailed
 	}
-	
+
 	if tokenResp.Code != 0 {
 		c.logger.Error("Feishu token API error", "code", tokenResp.Code, "msg", tokenResp.Msg)
 		return "", 0, &APIError{Code: tokenResp.Code, Msg: tokenResp.Msg}
 	}
-	
+
 	return tokenResp.AppAccessToken, tokenResp.Expire, nil
 }
 
@@ -140,9 +140,9 @@ type SendMessageRequest struct {
 
 // SendMessageResponse represents a message send response
 type SendMessageResponse struct {
-	Code      int    `json:"code"`
-	Msg       string `json:"msg"`
-	Data      *MessageData `json:"data"`
+	Code int          `json:"code"`
+	Msg  string       `json:"msg"`
+	Data *MessageData `json:"data"`
 }
 
 // MessageData represents message data in response
@@ -159,28 +159,28 @@ func (c *Client) SendTextMessage(ctx context.Context, token, chatID, text string
 // This is the generic message sending method for extensibility
 func (c *Client) SendMessage(ctx context.Context, token, chatID, msgType string, content map[string]string) (string, error) {
 	url := feishuAPIBase + feishuMessageAPI + "?receive_id_type=chat_id"
-	
+
 	contentBytes, err := json.Marshal(content)
 	if err != nil {
 		return "", err
 	}
-	
+
 	reqBody := SendMessageRequest{
 		ReceiveID: chatID,
 		MsgType:   msgType,
 		Content:   string(contentBytes),
 	}
-	
+
 	var msgResp SendMessageResponse
 	if err := c.doRequest(ctx, "POST", url, reqBody, token, &msgResp); err != nil {
 		return "", ErrMessageSendFailed
 	}
-	
+
 	if msgResp.Code != 0 {
 		c.logger.Error("Feishu message API error", "code", msgResp.Code, "msg", msgResp.Msg)
 		return "", &APIError{Code: msgResp.Code, Msg: msgResp.Msg}
 	}
-	
+
 	return msgResp.Data.MessageID, nil
 }
 

@@ -3,8 +3,8 @@ package feishu
 import (
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/base64"
 	"crypto/subtle"
+	"encoding/base64"
 )
 
 // calculateHMACSHA256 calculates HMAC-SHA256 signature

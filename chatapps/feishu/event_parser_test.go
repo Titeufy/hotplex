@@ -15,12 +15,12 @@ func TestAdapter_parseEvent(t *testing.T) {
 		VerificationToken: "test_token",
 		EncryptKey:        "test_encrypt_key",
 	}
-	
+
 	adapter, err := NewAdapter(config, logger)
 	if err != nil {
 		t.Fatalf("NewAdapter() error = %v", err)
 	}
-	
+
 	tests := []struct {
 		name    string
 		json    string
@@ -84,7 +84,7 @@ func TestAdapter_parseEvent(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			event, err := adapter.parseEvent([]byte(tt.json))
@@ -126,12 +126,12 @@ func TestEvent_JSONUnmarshal(t *testing.T) {
 		},
 		"token": "test_token"
 	}`
-	
+
 	var event Event
 	if err := json.Unmarshal([]byte(jsonStr), &event); err != nil {
 		t.Fatalf("json.Unmarshal() error = %v", err)
 	}
-	
+
 	if event.Schema != "2.0" {
 		t.Errorf("Event.Schema = %v, want '2.0'", event.Schema)
 	}
@@ -149,7 +149,7 @@ func TestEvent_JSONUnmarshal(t *testing.T) {
 func TestMessage_CreateTime(t *testing.T) {
 	now := time.Now()
 	unixMillis := now.UnixNano() / 1e6
-	
+
 	msg := &Message{
 		MessageID:  "msg_123",
 		SenderID:   "ou_123",
@@ -160,10 +160,10 @@ func TestMessage_CreateTime(t *testing.T) {
 			Text: "Test message",
 		},
 	}
-	
+
 	// Convert back to time
 	createdTime := time.Unix(msg.CreateTime/1000, 0)
-	
+
 	// Allow 1 second difference due to millisecond precision
 	if createdTime.Sub(now) > time.Second {
 		t.Errorf("Message.CreateTime conversion error: got %v, want ~%v", createdTime, now)

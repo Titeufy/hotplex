@@ -5,15 +5,15 @@ type Config struct {
 	// App credentials
 	AppID     string `json:"app_id" yaml:"app_id"`
 	AppSecret string `json:"app_secret" yaml:"app_secret"`
-	
+
 	// Event subscription
 	VerificationToken string `json:"verification_token" yaml:"verification_token"`
 	EncryptKey        string `json:"encrypt_key" yaml:"encrypt_key"`
-	
+
 	// Server configuration
 	ServerAddr    string `json:"server_addr" yaml:"server_addr"`
 	MaxMessageLen int    `json:"max_message_len" yaml:"max_message_len"`
-	
+
 	// System prompt
 	SystemPrompt string `json:"system_prompt" yaml:"system_prompt"`
 }

@@ -36,14 +36,14 @@ func TestCalculateHMACSHA256(t *testing.T) {
 			wantLen: 44,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := calculateHMACSHA256(tt.message, tt.key)
 			if len(got) != tt.wantLen {
 				t.Errorf("calculateHMACSHA256() length = %v, want %v", len(got), tt.wantLen)
 			}
-			
+
 			// Verify determinism
 			got2 := calculateHMACSHA256(tt.message, tt.key)
 			if got != got2 {
@@ -91,7 +91,7 @@ func TestSecureCompare(t *testing.T) {
 			want: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := secureCompare(tt.a, tt.b); got != tt.want {

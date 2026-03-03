@@ -80,7 +80,7 @@ func TestConfig_Validate(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.config.Validate()
@@ -99,7 +99,7 @@ func TestConfig_Validate(t *testing.T) {
 
 func TestNewAdapter(t *testing.T) {
 	logger := slog.Default()
-	
+
 	// Test with valid config
 	config := &Config{
 		AppID:             "test_app_id",
@@ -107,20 +107,20 @@ func TestNewAdapter(t *testing.T) {
 		VerificationToken: "test_token",
 		EncryptKey:        "test_encrypt_key",
 	}
-	
+
 	adapter, err := NewAdapter(config, logger)
 	if err != nil {
 		t.Fatalf("NewAdapter() error = %v", err)
 	}
-	
+
 	if adapter == nil {
 		t.Fatal("NewAdapter() returned nil adapter")
 	}
-	
+
 	if adapter.Platform() != "feishu" {
 		t.Errorf("Adapter.Platform() = %v, want 'feishu'", adapter.Platform())
 	}
-	
+
 	if adapter.client == nil {
 		t.Error("Adapter.client should not be nil")
 	}
@@ -128,14 +128,14 @@ func TestNewAdapter(t *testing.T) {
 
 func TestNewAdapter_InvalidConfig(t *testing.T) {
 	logger := slog.Default()
-	
+
 	// Test with invalid config (missing AppID)
 	config := &Config{
 		AppSecret:         "test_app_secret",
 		VerificationToken: "test_token",
 		EncryptKey:        "test_encrypt_key",
 	}
-	
+
 	adapter, err := NewAdapter(config, logger)
 	if err == nil {
 		t.Error("NewAdapter() should return error for invalid config")
